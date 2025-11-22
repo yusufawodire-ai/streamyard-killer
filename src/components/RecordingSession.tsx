@@ -1,10 +1,11 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
-import { Video, Clock, FileText, Image, Play } from "lucide-react";
+import { Video, Clock, FileText, Eye } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
 interface RecordingSessionProps {
   selectedBrand: string | null;
@@ -18,6 +19,7 @@ const formatDuration = (seconds: number | null): string => {
 };
 
 const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
+  const navigate = useNavigate();
   const { data: sessions, isLoading } = useQuery({
     queryKey: ['sessions', selectedBrand],
     queryFn: async () => {
@@ -66,7 +68,11 @@ const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3, delay: index * 0.05 }}
         >
-          <GlassCard variant="interactive" className="p-6">
+          <GlassCard 
+            variant="interactive" 
+            className="p-6 cursor-pointer"
+            onClick={() => navigate(`/session/${session.id}`)}
+          >
             <div className="flex items-start justify-between gap-4">
               <div className="flex gap-4 flex-1">
                 <div className="h-20 w-32 rounded-lg glass-card flex items-center justify-center flex-shrink-0">
@@ -95,27 +101,27 @@ const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
                         Transcript
                       </span>
                     )}
-                    {session.final_video_url && (
+                    {(session.final_video_url || session.raw_video_url) && (
                       <span className="flex items-center gap-1">
-                        <Image className="h-4 w-4" />
-                        Thumbnail
+                        <Video className="h-4 w-4" />
+                        Video Available
                       </span>
                     )}
                   </div>
                 </div>
               </div>
               <div className="flex gap-2">
-                {session.status === "recording" && (
-                  <Button size="sm" className="glass-button-primary">
-                    <Play className="h-4 w-4 mr-1" />
-                    Continue
-                  </Button>
-                )}
-                {(session.status === "completed" || session.status === "processed") && (
-                  <Button size="sm" variant="outline" className="glass-button">
-                    View
-                  </Button>
-                )}
+                <Button 
+                  size="sm" 
+                  className="glass-button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/session/${session.id}`);
+                  }}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  View
+                </Button>
               </div>
             </div>
           </GlassCard>

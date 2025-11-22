@@ -186,6 +186,10 @@ All colors MUST be HSL.
     @apply transition-all duration-300 hover:bg-primary hover:shadow-glow hover:scale-105;
   }
 
+  .glass-sidebar {
+    @apply backdrop-blur-xl bg-background/60 shadow-elegant;
+  }
+
   /* Glass Badge */
   .glass-badge {
     @apply backdrop-blur-sm bg-white/10 dark:bg-black/20 border border-white/20 dark:border-white/10;
