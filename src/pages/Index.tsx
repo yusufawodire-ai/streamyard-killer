@@ -6,9 +6,11 @@ import { Video, Play, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 import BrandSelector from "@/components/BrandSelector";
 import RecordingSession from "@/components/RecordingSession";
 import WorkflowVisualization from "@/components/WorkflowVisualization";
+import { NewRecordingModal } from "@/components/NewRecordingModal";
 
 const Index = () => {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
@@ -25,7 +27,10 @@ const Index = () => {
                 <p className="text-xs text-muted-foreground">AI-Powered Content Creation</p>
               </div>
             </div>
-            <Button className="bg-primary hover:bg-primary/90">
+            <Button 
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => setIsModalOpen(true)}
+            >
               <Play className="mr-2 h-4 w-4" />
               New Recording
             </Button>
@@ -108,6 +113,8 @@ const Index = () => {
           <RecordingSession selectedBrand={selectedBrand} />
         </section>
       </main>
+
+      <NewRecordingModal open={isModalOpen} onOpenChange={setIsModalOpen} />
     </div>
   );
 };
