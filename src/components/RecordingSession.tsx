@@ -2,73 +2,38 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Video, Clock, FileText, Image, Play } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface RecordingSessionProps {
   selectedBrand: string | null;
 }
 
-const sessions = [
-  {
-    id: 1,
-    brand: "ssv",
-    brandName: "SSV",
-    title: "H-1B Visa Process Overview",
-    duration: "12:34",
-    status: "completed",
-    date: "2025-11-20",
-    thumbnail: true,
-    transcript: true
-  },
-  {
-    id: 2,
-    brand: "igta",
-    brandName: "IGTA",
-    title: "Global Talent Advisory Intro",
-    duration: "8:15",
-    status: "processing",
-    date: "2025-11-21",
-    thumbnail: false,
-    transcript: true
-  },
-  {
-    id: 3,
-    brand: "camino",
-    brandName: "Camino",
-    title: "Immigration Success Stories",
-    duration: "15:42",
-    status: "in-progress",
-    date: "2025-11-22",
-    thumbnail: false,
-    transcript: false
-  },
-  {
-    id: 4,
-    brand: "ssv",
-    brandName: "SSV",
-    title: "EB-2 NIW Application Tips",
-    duration: "10:20",
-    status: "completed",
-    date: "2025-11-19",
-    thumbnail: true,
-    transcript: true
-  },
-  {
-    id: 5,
-    brand: "aventus",
-    brandName: "Aventus",
-    title: "Legal Tech Innovation",
-    duration: "9:45",
-    status: "completed",
-    date: "2025-11-18",
-    thumbnail: true,
-    transcript: true
-  }
-];
+const formatDuration = (seconds: number | null): string => {
+  if (!seconds) return "0:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
 const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
-  const filteredSessions = selectedBrand
-    ? sessions.filter((s) => s.brand === selectedBrand)
-    : sessions;
+  const { data: sessions, isLoading } = useQuery({
+    queryKey: ['sessions', selectedBrand],
+    queryFn: async () => {
+      let query = supabase
+        .from('sessions')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (selectedBrand) {
+        query = query.eq('brand_id', selectedBrand);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -83,9 +48,17 @@ const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
     }
   };
 
+  if (isLoading) {
+    return <div className="text-center text-muted-foreground py-8">Loading sessions...</div>;
+  }
+
+  if (!sessions || sessions.length === 0) {
+    return <div className="text-center text-muted-foreground py-8">No recording sessions found.</div>;
+  }
+
   return (
     <div className="space-y-4">
-      {filteredSessions.map((session) => (
+      {sessions.map((session) => (
         <Card key={session.id} className="p-6 border-border hover:shadow-lg transition-shadow">
           <div className="flex items-start justify-between gap-4">
             <div className="flex gap-4 flex-1">
@@ -97,7 +70,7 @@ const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
                   <div>
                     <h3 className="font-semibold text-foreground">{session.title}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {session.brandName} • {session.date}
+                      {session.brand_id} • {new Date(session.created_at).toLocaleDateString()}
                     </p>
                   </div>
                   <Badge className={getStatusColor(session.status)} variant="outline">
@@ -107,15 +80,15 @@ const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Clock className="h-4 w-4" />
-                    {session.duration}
+                    {formatDuration(session.duration_seconds)}
                   </span>
-                  {session.transcript && (
+                  {session.transcript_url && (
                     <span className="flex items-center gap-1">
                       <FileText className="h-4 w-4" />
                       Transcript
                     </span>
                   )}
-                  {session.thumbnail && (
+                  {session.final_video_url && (
                     <span className="flex items-center gap-1">
                       <Image className="h-4 w-4" />
                       Thumbnail
@@ -125,13 +98,13 @@ const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
               </div>
             </div>
             <div className="flex gap-2">
-              {session.status === "in-progress" && (
+              {session.status === "recording" && (
                 <Button size="sm" className="bg-primary hover:bg-primary/90">
                   <Play className="h-4 w-4 mr-1" />
                   Continue
                 </Button>
               )}
-              {session.status === "completed" && (
+              {(session.status === "completed" || session.status === "processed") && (
                 <Button size="sm" variant="outline">
                   View
                 </Button>
