@@ -1,9 +1,10 @@
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { GlassCard } from "@/components/ui/glass-card";
 import { Video, Clock, FileText, Image, Play } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { motion } from "framer-motion";
 
 interface RecordingSessionProps {
   selectedBrand: string | null;
@@ -58,60 +59,67 @@ const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
 
   return (
     <div className="space-y-4">
-      {sessions.map((session) => (
-        <Card key={session.id} className="p-6 border-border hover:shadow-lg transition-shadow">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex gap-4 flex-1">
-              <div className="h-20 w-32 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                <Video className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <div className="flex-1 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h3 className="font-semibold text-foreground">{session.title}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {session.brand_id} • {new Date(session.created_at).toLocaleDateString()}
-                    </p>
+      {sessions.map((session, index) => (
+        <motion.div
+          key={session.id}
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3, delay: index * 0.05 }}
+        >
+          <GlassCard variant="interactive" className="p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex gap-4 flex-1">
+                <div className="h-20 w-32 rounded-lg glass-card flex items-center justify-center flex-shrink-0">
+                  <Video className="h-8 w-8 text-primary" />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="font-semibold text-foreground">{session.title}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {session.brand_id} • {new Date(session.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Badge className={getStatusColor(session.status)} variant="outline">
+                      {session.status}
+                    </Badge>
                   </div>
-                  <Badge className={getStatusColor(session.status)} variant="outline">
-                    {session.status}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    {formatDuration(session.duration_seconds)}
-                  </span>
-                  {session.transcript_url && (
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <FileText className="h-4 w-4" />
-                      Transcript
+                      <Clock className="h-4 w-4" />
+                      {formatDuration(session.duration_seconds)}
                     </span>
-                  )}
-                  {session.final_video_url && (
-                    <span className="flex items-center gap-1">
-                      <Image className="h-4 w-4" />
-                      Thumbnail
-                    </span>
-                  )}
+                    {session.transcript_url && (
+                      <span className="flex items-center gap-1">
+                        <FileText className="h-4 w-4" />
+                        Transcript
+                      </span>
+                    )}
+                    {session.final_video_url && (
+                      <span className="flex items-center gap-1">
+                        <Image className="h-4 w-4" />
+                        Thumbnail
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
+              <div className="flex gap-2">
+                {session.status === "recording" && (
+                  <Button size="sm" className="glass-button-primary">
+                    <Play className="h-4 w-4 mr-1" />
+                    Continue
+                  </Button>
+                )}
+                {(session.status === "completed" || session.status === "processed") && (
+                  <Button size="sm" variant="outline" className="glass-button">
+                    View
+                  </Button>
+                )}
+              </div>
             </div>
-            <div className="flex gap-2">
-              {session.status === "recording" && (
-                <Button size="sm" className="bg-primary hover:bg-primary/90">
-                  <Play className="h-4 w-4 mr-1" />
-                  Continue
-                </Button>
-              )}
-              {(session.status === "completed" || session.status === "processed") && (
-                <Button size="sm" variant="outline">
-                  View
-                </Button>
-              )}
-            </div>
-          </div>
-        </Card>
+          </GlassCard>
+        </motion.div>
       ))}
     </div>
   );

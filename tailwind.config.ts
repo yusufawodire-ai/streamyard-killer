@@ -79,6 +79,7 @@ export default {
         "gradient-primary": "var(--gradient-primary)",
         "gradient-card": "var(--gradient-card)",
         "gradient-subtle": "var(--gradient-subtle)",
+        "gradient-mesh": "linear-gradient(135deg, hsl(var(--background)), hsl(var(--background)), hsl(var(--primary) / 0.05))",
       },
       transitionTimingFunction: {
         smooth: "cubic-bezier(0.4, 0, 0.2, 1)",
@@ -130,6 +131,10 @@ export default {
           "0%": { backgroundPosition: "-1000px 0" },
           "100%": { backgroundPosition: "1000px 0" },
         },
+        "mesh-move": {
+          "0%, 100%": { opacity: "1", transform: "scale(1)" },
+          "50%": { opacity: "0.8", transform: "scale(1.1)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -142,6 +147,7 @@ export default {
         "slide-out-right": "slide-out-right 0.3s ease-out",
         pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         shimmer: "shimmer 2s linear infinite",
+        "mesh-move": "mesh-move 20s ease-in-out infinite",
       },
     },
   },

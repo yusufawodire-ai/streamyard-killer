@@ -153,3 +153,93 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Glassmorphism Utilities */
+@layer components {
+  /* Base Glass Effect */
+  .glass-card {
+    @apply backdrop-blur-md bg-white/10 dark:bg-black/20 border border-white/20 dark:border-white/10 shadow-elegant;
+  }
+
+  .glass-elevated {
+    @apply backdrop-blur-lg bg-white/20 dark:bg-black/30 border border-white/30 dark:border-white/20 shadow-glow;
+  }
+
+  .glass-interactive {
+    @apply backdrop-blur-md bg-white/10 dark:bg-black/20 border border-white/20 dark:border-white/10 shadow-elegant;
+    @apply transition-all duration-300 hover:bg-white/20 dark:hover:bg-black/30 hover:shadow-glow hover:scale-[1.02];
+  }
+
+  /* Glass Header */
+  .glass-header {
+    @apply backdrop-blur-xl bg-background/80 border-b border-white/10 dark:border-white/5 shadow-sm;
+  }
+
+  /* Glass Buttons */
+  .glass-button {
+    @apply backdrop-blur-md bg-white/10 dark:bg-black/20 border border-white/30 dark:border-white/10;
+    @apply transition-all duration-300 hover:bg-white/20 dark:hover:bg-black/30 hover:shadow-glow;
+  }
+
+  .glass-button-primary {
+    @apply backdrop-blur-md bg-primary/90 border border-primary-glow/50;
+    @apply transition-all duration-300 hover:bg-primary hover:shadow-glow hover:scale-105;
+  }
+
+  /* Glass Badge */
+  .glass-badge {
+    @apply backdrop-blur-sm bg-white/10 dark:bg-black/20 border border-white/20 dark:border-white/10;
+  }
+
+  /* Glass Modal */
+  .glass-modal {
+    @apply backdrop-blur-xl bg-card/95 border-white/10 dark:border-white/5 shadow-2xl;
+  }
+
+  /* Glass Video Frame */
+  .glass-video-frame {
+    @apply border-2 border-primary/30 shadow-glow rounded-xl;
+  }
+
+  /* Animated Gradient Background */
+  .bg-gradient-mesh {
+    @apply bg-gradient-to-br from-background via-background to-primary/5;
+    position: relative;
+  }
+
+  .bg-gradient-mesh::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      radial-gradient(circle at 20% 50%, hsl(262 83% 58% / 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, hsl(217 91% 60% / 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 40% 20%, hsl(142 76% 36% / 0.05) 0%, transparent 50%);
+    animation: mesh-move 20s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  @keyframes mesh-move {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.8;
+      transform: scale(1.1);
+    }
+  }
+
+  /* Shadow Utilities */
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .shadow-elegant {
+    box-shadow: var(--shadow-elegant);
+  }
+}
