@@ -17,8 +17,10 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 221 83% 53%;
+    /* Primary: Deep Purple/Indigo - trust, creativity */
+    --primary: 262 83% 58%;
     --primary-foreground: 0 0% 100%;
+    --primary-glow: 262 83% 70%;
 
     --secondary: 220 17% 93%;
     --secondary-foreground: 222 47% 11%;
@@ -26,7 +28,8 @@ All colors MUST be HSL.
     --muted: 220 17% 93%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 262 83% 58%;
+    /* Accent: Electric Blue - energy, action */
+    --accent: 217 91% 60%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
@@ -34,30 +37,43 @@ All colors MUST be HSL.
 
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 221 83% 53%;
+    --ring: 262 83% 58%;
 
     --radius: 0.75rem;
 
+    /* Success: Vibrant Green */
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
 
+    /* Warning: Warm Amber */
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(221 83% 53%), hsl(262 83% 58%));
+    /* Gradients - Modern video platform style */
+    --gradient-hero: linear-gradient(135deg, hsl(262 83% 58%), hsl(217 91% 60%));
+    --gradient-primary: linear-gradient(135deg, hsl(262 83% 58%), hsl(262 83% 70%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(0 0% 100% / 0.8));
     --gradient-subtle: linear-gradient(180deg, hsl(220 25% 98%), hsl(220 17% 96%));
     
-    --shadow-elegant: 0 4px 20px -4px hsl(221 83% 53% / 0.15);
-    --shadow-glow: 0 0 40px hsl(262 83% 58% / 0.2);
+    /* Shadows with color - depth and elevation */
+    --shadow-primary: 0 8px 32px hsl(262 83% 58% / 0.15);
+    --shadow-card: 0 2px 8px hsl(222 47% 11% / 0.04);
+    --shadow-card-hover: 0 12px 48px hsl(262 83% 58% / 0.2);
+    --shadow-elegant: 0 4px 20px -4px hsl(262 83% 58% / 0.15);
+    --shadow-glow: 0 0 40px hsl(262 83% 70% / 0.25);
+    
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 
     --sidebar-background: 222 47% 11%;
     --sidebar-foreground: 220 17% 93%;
-    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary: 262 83% 58%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 217 33% 17%;
     --sidebar-accent-foreground: 220 17% 93%;
     --sidebar-border: 217 33% 17%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-ring: 262 83% 58%;
   }
 
   .dark {
@@ -70,8 +86,10 @@ All colors MUST be HSL.
     --popover: 217 33% 17%;
     --popover-foreground: 220 17% 93%;
 
-    --primary: 221 83% 53%;
+    /* Primary: Deep Purple/Indigo - trust, creativity */
+    --primary: 262 83% 58%;
     --primary-foreground: 0 0% 100%;
+    --primary-glow: 262 83% 70%;
 
     --secondary: 217 33% 17%;
     --secondary-foreground: 220 17% 93%;
@@ -79,7 +97,8 @@ All colors MUST be HSL.
     --muted: 217 33% 17%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 262 83% 58%;
+    /* Accent: Electric Blue - energy, action */
+    --accent: 217 91% 60%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 63% 31%;
@@ -87,28 +106,41 @@ All colors MUST be HSL.
 
     --border: 217 33% 24%;
     --input: 217 33% 24%;
-    --ring: 221 83% 53%;
+    --ring: 262 83% 58%;
 
+    /* Success: Vibrant Green */
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
 
+    /* Warning: Warm Amber */
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(221 83% 53%), hsl(262 83% 58%));
+    /* Gradients - Modern video platform style */
+    --gradient-hero: linear-gradient(135deg, hsl(262 83% 58%), hsl(217 91% 60%));
+    --gradient-primary: linear-gradient(135deg, hsl(262 83% 58%), hsl(262 83% 70%));
+    --gradient-card: linear-gradient(180deg, hsl(217 33% 17%), hsl(217 33% 17% / 0.8));
     --gradient-subtle: linear-gradient(180deg, hsl(222 47% 11%), hsl(217 33% 17%));
     
-    --shadow-elegant: 0 4px 20px -4px hsl(221 83% 53% / 0.3);
-    --shadow-glow: 0 0 40px hsl(262 83% 58% / 0.3);
+    /* Shadows with color - depth and elevation */
+    --shadow-primary: 0 8px 32px hsl(262 83% 58% / 0.25);
+    --shadow-card: 0 2px 8px hsl(0 0% 0% / 0.2);
+    --shadow-card-hover: 0 12px 48px hsl(262 83% 58% / 0.3);
+    --shadow-elegant: 0 4px 20px -4px hsl(262 83% 58% / 0.3);
+    --shadow-glow: 0 0 40px hsl(262 83% 70% / 0.35);
+    
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 
     --sidebar-background: 222 47% 11%;
     --sidebar-foreground: 220 17% 93%;
-    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary: 262 83% 58%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 217 33% 17%;
     --sidebar-accent-foreground: 220 17% 93%;
     --sidebar-border: 217 33% 17%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-ring: 262 83% 58%;
   }
 }
 
