@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,12 +7,13 @@ import BrandSelector from "@/components/BrandSelector";
 import RecordingSession from "@/components/RecordingSession";
 import WorkflowVisualization from "@/components/WorkflowVisualization";
 import { NewRecordingModal } from "@/components/NewRecordingModal";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: stats } = useQuery({
     queryKey: ['session-stats'],
@@ -35,6 +36,31 @@ const Index = () => {
       return { total, inProgress, completed, issues };
     },
   });
+
+  // Set up realtime subscription for sessions table
+  useEffect(() => {
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'sessions'
+        },
+        (payload) => {
+          console.log('Realtime update received:', payload);
+          // Invalidate both queries to trigger refetch
+          queryClient.invalidateQueries({ queryKey: ['session-stats'] });
+          queryClient.invalidateQueries({ queryKey: ['sessions'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
