@@ -7,10 +7,34 @@ import BrandSelector from "@/components/BrandSelector";
 import RecordingSession from "@/components/RecordingSession";
 import WorkflowVisualization from "@/components/WorkflowVisualization";
 import { NewRecordingModal } from "@/components/NewRecordingModal";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const { data: stats } = useQuery({
+    queryKey: ['session-stats'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('status');
+      
+      if (error) throw error;
+
+      const total = data.length;
+      const inProgress = data.filter(s => 
+        ['recording', 'transcribing', 'processing'].includes(s.status)
+      ).length;
+      const completed = data.filter(s => 
+        ['completed', 'processed'].includes(s.status)
+      ).length;
+      const issues = data.filter(s => s.status === 'error').length;
+
+      return { total, inProgress, completed, issues };
+    },
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
@@ -51,7 +75,7 @@ const Index = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Sessions</p>
-                <p className="text-3xl font-bold text-foreground mt-1">24</p>
+                <p className="text-3xl font-bold text-foreground mt-1">{stats?.total ?? 0}</p>
               </div>
               <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
                 <Video className="h-6 w-6 text-primary" />
@@ -63,7 +87,7 @@ const Index = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">In Progress</p>
-                <p className="text-3xl font-bold text-foreground mt-1">3</p>
+                <p className="text-3xl font-bold text-foreground mt-1">{stats?.inProgress ?? 0}</p>
               </div>
               <div className="h-12 w-12 rounded-full bg-warning/10 flex items-center justify-center">
                 <Clock className="h-6 w-6 text-warning" />
@@ -75,7 +99,7 @@ const Index = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Completed</p>
-                <p className="text-3xl font-bold text-foreground mt-1">18</p>
+                <p className="text-3xl font-bold text-foreground mt-1">{stats?.completed ?? 0}</p>
               </div>
               <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
                 <CheckCircle2 className="h-6 w-6 text-success" />
@@ -87,7 +111,7 @@ const Index = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Issues</p>
-                <p className="text-3xl font-bold text-foreground mt-1">2</p>
+                <p className="text-3xl font-bold text-foreground mt-1">{stats?.issues ?? 0}</p>
               </div>
               <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
                 <AlertCircle className="h-6 w-6 text-destructive" />
