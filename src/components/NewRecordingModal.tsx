@@ -121,7 +121,7 @@ export const NewRecordingModal = ({ open, onOpenChange }: NewRecordingModalProps
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto glass-modal">
         {!roomUrl ? (
           <>
             <DialogHeader>
@@ -212,7 +212,7 @@ export const NewRecordingModal = ({ open, onOpenChange }: NewRecordingModalProps
 
             <div 
               id="daily-frame" 
-              className="aspect-video bg-black rounded-lg overflow-hidden"
+              className="aspect-video bg-black rounded-lg overflow-hidden glass-video-frame"
               style={{ width: '100%', height: '500px' }}
             />
 
