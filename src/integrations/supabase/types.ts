@@ -14,7 +14,205 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      brand_assets: {
+        Row: {
+          asset_type: string
+          brand_id: string
+          created_at: string | null
+          duration_seconds: number | null
+          file_name: string
+          file_size_bytes: number | null
+          file_url: string
+          id: string
+          mime_type: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          asset_type: string
+          brand_id: string
+          created_at?: string | null
+          duration_seconds?: number | null
+          file_name: string
+          file_size_bytes?: number | null
+          file_url: string
+          id?: string
+          mime_type?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          asset_type?: string
+          brand_id?: string
+          created_at?: string | null
+          duration_seconds?: number | null
+          file_name?: string
+          file_size_bytes?: number | null
+          file_url?: string
+          id?: string
+          mime_type?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      distribution_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          id: string
+          platform: string
+          platform_post_id: string | null
+          post_url: string | null
+          published_at: string | null
+          session_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          platform: string
+          platform_post_id?: string | null
+          post_url?: string | null
+          published_at?: string | null
+          session_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          platform?: string
+          platform_post_id?: string | null
+          post_url?: string | null
+          published_at?: string | null
+          session_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distribution_logs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessions: {
+        Row: {
+          brand_id: string
+          created_at: string | null
+          daily_download_url: string | null
+          daily_recording_id: string | null
+          daily_room_id: string | null
+          daily_room_url: string | null
+          description: string | null
+          duration_seconds: number | null
+          error_message: string | null
+          final_video_url: string | null
+          id: string
+          raw_video_url: string | null
+          recorded_at: string | null
+          status: string
+          title: string
+          transcript_url: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string | null
+          daily_download_url?: string | null
+          daily_recording_id?: string | null
+          daily_room_id?: string | null
+          daily_room_url?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          error_message?: string | null
+          final_video_url?: string | null
+          id?: string
+          raw_video_url?: string | null
+          recorded_at?: string | null
+          status?: string
+          title: string
+          transcript_url?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string | null
+          daily_download_url?: string | null
+          daily_recording_id?: string | null
+          daily_room_id?: string | null
+          daily_room_url?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          error_message?: string | null
+          final_video_url?: string | null
+          id?: string
+          raw_video_url?: string | null
+          recorded_at?: string | null
+          status?: string
+          title?: string
+          transcript_url?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      transcripts: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          full_text: string | null
+          id: string
+          language: string | null
+          provider: string | null
+          provider_job_id: string | null
+          session_id: string
+          srt_content: string | null
+          status: string
+          vtt_content: string | null
+          word_count: number | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          full_text?: string | null
+          id?: string
+          language?: string | null
+          provider?: string | null
+          provider_job_id?: string | null
+          session_id: string
+          srt_content?: string | null
+          status?: string
+          vtt_content?: string | null
+          word_count?: number | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          full_text?: string | null
+          id?: string
+          language?: string | null
+          provider?: string | null
+          provider_job_id?: string | null
+          session_id?: string
+          srt_content?: string | null
+          status?: string
+          vtt_content?: string | null
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transcripts_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
