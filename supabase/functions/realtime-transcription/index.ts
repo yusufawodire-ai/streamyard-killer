@@ -31,14 +31,9 @@ serve(async (req) => {
   browserSocket.onopen = () => {
     console.log('Browser WebSocket connected');
     
-    // Connect to AssemblyAI's real-time API
+    // Connect to AssemblyAI's real-time API with token as query parameter
     assemblySocket = new WebSocket(
-      'wss://api.assemblyai.com/v2/realtime/ws?sample_rate=16000',
-      {
-        headers: {
-          'Authorization': ASSEMBLYAI_API_KEY,
-        },
-      }
+      `wss://api.assemblyai.com/v2/realtime/ws?sample_rate=16000&token=${ASSEMBLYAI_API_KEY}`
     );
 
     assemblySocket.onopen = () => {
