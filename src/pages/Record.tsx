@@ -1,116 +1,36 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Video, X } from "lucide-react";
+import { Loader2, Video, Square, Play, Pause, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { GlassCard } from "@/components/ui/glass-card";
-import Daily from "@daily-co/daily-js";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { CustomRecordingControls } from "@/components/CustomRecordingControls";
+import { useScreenRecorder } from "@/hooks/useScreenRecorder";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 const Record = () => {
   const [brandId, setBrandId] = useState("");
   const [title, setTitle] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-  const [roomUrl, setRoomUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [callFrame, setCallFrame] = useState<any>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingDuration, setRecordingDuration] = useState(0);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const dailyFrameRef = useRef<HTMLDivElement>(null);
+  const { state, startRecording, stopRecording, pauseRecording, resumeRecording, uploadRecording } = useScreenRecorder();
 
-  useEffect(() => {
-    if (roomUrl && !callFrame && dailyFrameRef.current) {
-      const initializeFrame = () => {
-        const container = dailyFrameRef.current;
-        
-        if (!container) {
-          console.log('Container not ready, retrying...');
-          setTimeout(() => {
-            requestAnimationFrame(initializeFrame);
-          }, 100);
-          return;
-        }
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
-        try {
-          console.log('Creating Daily frame...');
-          const frame = Daily.createFrame(container, {
-            showLeaveButton: true,
-            showFullscreenButton: true,
-          });
-          
-          frame.join({ url: roomUrl });
-          setCallFrame(frame);
-
-          frame.on('left-meeting', handleLeaveCall);
-          
-          // Auto-start recording when joined
-          frame.on('joined-meeting', async () => {
-            try {
-              await frame.startRecording();
-              setIsRecording(true);
-              
-              toast({
-                title: "Recording Started",
-                description: "Your session is now being recorded. Transcription will be generated after recording ends.",
-              });
-            } catch (error) {
-              console.error('Failed to start recording:', error);
-              toast({
-                title: "Recording Failed",
-                description: error instanceof Error ? error.message : "Failed to start recording",
-                variant: "destructive",
-              });
-            }
-          });
-
-          frame.on('recording-started', () => {
-            setIsRecording(true);
-          });
-
-          frame.on('recording-stopped', () => {
-            setIsRecording(false);
-          });
-        } catch (error) {
-          console.error('Error creating Daily frame:', error);
-          toast({
-            title: "Connection Error",
-            description: "Failed to initialize video call. Please try again.",
-            variant: "destructive",
-          });
-        }
-      };
-
-      requestAnimationFrame(initializeFrame);
-    }
-
-    return () => {
-      if (callFrame) {
-        callFrame.destroy();
-      }
-    };
-  }, [roomUrl]);
-
-  // Recording duration timer
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isRecording) {
-      interval = setInterval(() => {
-        setRecordingDuration(prev => prev + 1);
-      }, 1000);
-    } else {
-      setRecordingDuration(0);
-    }
-    return () => clearInterval(interval);
-  }, [isRecording]);
-
-  const handleCreateSession = async () => {
+  const handleStartRecording = async () => {
     if (!brandId || !title.trim()) {
       toast({
         title: "Validation Error",
@@ -123,28 +43,33 @@ const Record = () => {
     setIsCreating(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('create-recording-session', {
-        body: {
+      // Create session in database
+      const { data, error } = await supabase
+        .from('sessions')
+        .insert({
           brand_id: brandId,
           title: title.trim(),
-          description: null,
-        },
-      });
+          status: 'recording',
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      setRoomUrl(data.room_url);
-      setSessionId(data.session_id);
+      setSessionId(data.id);
+
+      // Start screen recording
+      await startRecording();
 
       toast({
-        title: "Room Created",
-        description: "Your recording room is ready!",
+        title: "Recording Started",
+        description: "Your screen is now being recorded",
       });
     } catch (error) {
-      console.error('Error creating session:', error);
+      console.error('Error starting recording:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create recording session",
+        description: error instanceof Error ? error.message : "Failed to start recording",
         variant: "destructive",
       });
     } finally {
@@ -153,86 +78,126 @@ const Record = () => {
   };
 
   const handleStopRecording = async () => {
-    if (callFrame && isRecording) {
-      try {
-        await callFrame.stopRecording();
-        toast({
-          title: "Recording Stopped",
-          description: "Your recording will be processed and transcribed automatically",
-        });
-      } catch (error) {
-        console.error('Failed to stop recording:', error);
-        toast({
-          title: "Error",
-          description: "Failed to stop recording",
-          variant: "destructive",
-        });
-      }
-    }
-  };
+    if (!sessionId) return;
 
-  const handleLeaveCall = async () => {
-    if (callFrame) {
-      callFrame.destroy();
-      setCallFrame(null);
-    }
-    
-    toast({
-      title: "Recording Ended",
-      description: "Your recording is being processed. Transcription will be available soon.",
-    });
-    
-    setRoomUrl(null);
-    setIsRecording(false);
-    
-    if (sessionId) {
+    try {
+      setIsUploading(true);
+      setUploadProgress(10);
+
+      // Stop recording and get blob
+      const blob = await stopRecording();
+      setUploadProgress(30);
+
+      // Upload to Supabase Storage
+      const videoUrl = await uploadRecording(blob, sessionId, brandId);
+      setUploadProgress(70);
+
+      // Update session with video URL
+      const { error: updateError } = await supabase
+        .from('sessions')
+        .update({
+          final_video_url: videoUrl,
+          status: 'recorded',
+          recorded_at: new Date().toISOString(),
+          duration_seconds: state.duration,
+        })
+        .eq('id', sessionId);
+
+      if (updateError) throw updateError;
+
+      setUploadProgress(90);
+
+      // Start transcription
+      await supabase.functions.invoke('start-transcription', {
+        body: { session_id: sessionId },
+      });
+
+      setUploadProgress(100);
+
+      toast({
+        title: "Recording Complete",
+        description: "Your video is ready and transcription has started",
+      });
+
+      // Navigate to session detail
       navigate(`/session/${sessionId}`);
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to process recording",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
-  if (roomUrl) {
+  // Show recording interface
+  if (state.isRecording || isUploading) {
     return (
-      <div className="min-h-screen p-6">
+      <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-background via-background to-primary/5">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-5xl mx-auto space-y-4"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-2xl"
         >
-          <div className="flex items-center justify-between">
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold">{title}</h1>
-              <p className="text-sm text-muted-foreground">Session ID: {sessionId}</p>
-            </div>
-            <div className="flex gap-2">
-              {isRecording && (
-                <Button variant="outline" onClick={handleStopRecording}>
-                  Stop Recording
-                </Button>
-              )}
-              <Button variant="destructive" onClick={handleLeaveCall}>
-                <X className="mr-2 h-4 w-4" />
-                End Session
-              </Button>
-            </div>
-          </div>
-          
-          <GlassCard className="p-0 overflow-hidden relative">
-            <CustomRecordingControls 
-              isRecording={isRecording}
-              duration={recordingDuration}
-              sessionTitle={title}
-            />
-            <div 
-              ref={dailyFrameRef}
-              className="aspect-video bg-black"
-              style={{ width: '100%', minHeight: '600px' }}
-            />
+          <GlassCard className="p-8 text-center space-y-6">
+            {isUploading ? (
+              <>
+                <Upload className="h-16 w-16 mx-auto text-primary animate-pulse" />
+                <h2 className="text-2xl font-bold">Processing Recording</h2>
+                <p className="text-muted-foreground">
+                  Uploading your video and starting transcription...
+                </p>
+                <Progress value={uploadProgress} className="w-full" />
+                <p className="text-sm text-muted-foreground">{uploadProgress}%</p>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-center gap-4">
+                  <Badge variant="destructive" className="px-4 py-2 text-lg animate-pulse">
+                    <div className="h-3 w-3 bg-white rounded-full mr-2 animate-pulse" />
+                    REC {formatDuration(state.duration)}
+                  </Badge>
+                </div>
+
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-bold">{title}</h2>
+                  <p className="text-sm text-muted-foreground">Session ID: {sessionId}</p>
+                </div>
+
+                <div className="flex items-center justify-center gap-4">
+                  {state.isPaused ? (
+                    <Button onClick={resumeRecording} size="lg" variant="outline">
+                      <Play className="mr-2 h-5 w-5" />
+                      Resume
+                    </Button>
+                  ) : (
+                    <Button onClick={pauseRecording} size="lg" variant="outline">
+                      <Pause className="mr-2 h-5 w-5" />
+                      Pause
+                    </Button>
+                  )}
+                  <Button onClick={handleStopRecording} size="lg" variant="destructive">
+                    <Square className="mr-2 h-5 w-5" />
+                    Stop & Save
+                  </Button>
+                </div>
+
+                <p className="text-sm text-muted-foreground">
+                  Your screen is being recorded. Click "Stop & Save" when finished.
+                </p>
+              </>
+            )}
           </GlassCard>
         </motion.div>
       </div>
     );
   }
 
+  // Show initial setup form
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
       <motion.div
@@ -244,7 +209,7 @@ const Record = () => {
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold mb-2">Start Recording</h1>
             <p className="text-muted-foreground">
-              Create a new recording session for your brand
+              Record your screen with audio
             </p>
           </div>
 
@@ -275,7 +240,7 @@ const Record = () => {
             </div>
 
             <Button 
-              onClick={handleCreateSession} 
+              onClick={handleStartRecording} 
               disabled={isCreating}
               className="w-full h-14 text-lg"
               size="lg"
@@ -283,7 +248,7 @@ const Record = () => {
               {isCreating ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Creating Room...
+                  Initializing...
                 </>
               ) : (
                 <>

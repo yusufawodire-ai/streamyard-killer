@@ -101,10 +101,6 @@ export type Database = {
         Row: {
           brand_id: string
           created_at: string | null
-          daily_download_url: string | null
-          daily_recording_id: string | null
-          daily_room_id: string | null
-          daily_room_url: string | null
           description: string | null
           duration_seconds: number | null
           error_message: string | null
@@ -113,6 +109,7 @@ export type Database = {
           is_public: boolean | null
           raw_video_url: string | null
           recorded_at: string | null
+          recording_metadata: Json | null
           share_expires_at: string | null
           share_token: string | null
           status: string
@@ -124,10 +121,6 @@ export type Database = {
         Insert: {
           brand_id: string
           created_at?: string | null
-          daily_download_url?: string | null
-          daily_recording_id?: string | null
-          daily_room_id?: string | null
-          daily_room_url?: string | null
           description?: string | null
           duration_seconds?: number | null
           error_message?: string | null
@@ -136,6 +129,7 @@ export type Database = {
           is_public?: boolean | null
           raw_video_url?: string | null
           recorded_at?: string | null
+          recording_metadata?: Json | null
           share_expires_at?: string | null
           share_token?: string | null
           status?: string
@@ -147,10 +141,6 @@ export type Database = {
         Update: {
           brand_id?: string
           created_at?: string | null
-          daily_download_url?: string | null
-          daily_recording_id?: string | null
-          daily_room_id?: string | null
-          daily_room_url?: string | null
           description?: string | null
           duration_seconds?: number | null
           error_message?: string | null
@@ -159,6 +149,7 @@ export type Database = {
           is_public?: boolean | null
           raw_video_url?: string | null
           recorded_at?: string | null
+          recording_metadata?: Json | null
           share_expires_at?: string | null
           share_token?: string | null
           status?: string

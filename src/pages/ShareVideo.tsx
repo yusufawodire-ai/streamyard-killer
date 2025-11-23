@@ -68,7 +68,7 @@ export default function ShareVideo() {
     );
   }
 
-  const videoUrl = session.final_video_url || session.raw_video_url || session.daily_download_url;
+  const videoUrl = session.final_video_url || session.raw_video_url;
 
   return (
     <div className="min-h-screen bg-background">
@@ -83,7 +83,6 @@ export default function ShareVideo() {
 
           <VideoPlayer 
             videoUrl={videoUrl}
-            dailyUrl={session.daily_room_url}
             title={session.title}
           />
 
