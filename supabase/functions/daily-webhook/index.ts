@@ -12,8 +12,27 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Handle GET requests (Daily.co verification)
+  if (req.method === 'GET') {
+    console.log('GET request received - webhook verification');
+    return new Response(
+      JSON.stringify({ status: 'ok', message: 'Webhook endpoint is active' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   try {
-    const payload = await req.json();
+    // Try to parse JSON, handle gracefully if not valid JSON
+    let payload;
+    try {
+      payload = await req.json();
+    } catch (parseError) {
+      console.log('Non-JSON request received, returning OK for verification');
+      return new Response(
+        JSON.stringify({ status: 'ok', message: 'Webhook endpoint is active' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     console.log('=== Daily.co Webhook Received ===');
     console.log('Full payload:', JSON.stringify(payload, null, 2));
     console.log('Headers:', JSON.stringify(Object.fromEntries(req.headers), null, 2));

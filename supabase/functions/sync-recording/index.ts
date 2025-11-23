@@ -94,10 +94,15 @@ serve(async (req) => {
     };
 
     if (recording.status === 'finished' && recording.download_link) {
+      console.log('Recording finished with download link available');
       updateData.status = 'recorded';
       updateData.daily_download_url = recording.download_link;
       updateData.raw_video_url = recording.download_link;
       updateData.duration_seconds = recording.duration;
+    } else if (recording.status === 'finished') {
+      // Recording finished but download not ready yet
+      console.log('Recording finished but download link not ready yet');
+      updateData.status = 'processing';
     } else if (recording.status === 'recording') {
       updateData.status = 'recording';
     } else if (recording.status === 'processing') {
