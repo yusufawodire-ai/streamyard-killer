@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,10 +23,18 @@ const Record = () => {
   const [recordingDuration, setRecordingDuration] = useState(0);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const dailyFrameRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (roomUrl && !callFrame) {
-      const frame = Daily.createFrame(document.getElementById('daily-frame')!, {
+    if (roomUrl && !callFrame && dailyFrameRef.current) {
+      // Ensure DOM element is ready before creating frame
+      const container = dailyFrameRef.current;
+      if (!container) {
+        console.error('Daily frame container not found');
+        return;
+      }
+
+      const frame = Daily.createFrame(container, {
         showLeaveButton: true,
         showFullscreenButton: true,
       });
@@ -200,7 +208,7 @@ const Record = () => {
               sessionTitle={title}
             />
             <div 
-              id="daily-frame" 
+              ref={dailyFrameRef}
               className="aspect-video bg-black"
               style={{ width: '100%', minHeight: '600px' }}
             />
