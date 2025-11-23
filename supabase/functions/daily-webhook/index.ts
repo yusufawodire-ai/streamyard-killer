@@ -14,7 +14,9 @@ serve(async (req) => {
 
   try {
     const payload = await req.json();
-    console.log('Received Daily.co webhook:', JSON.stringify(payload, null, 2));
+    console.log('=== Daily.co Webhook Received ===');
+    console.log('Full payload:', JSON.stringify(payload, null, 2));
+    console.log('Headers:', JSON.stringify(Object.fromEntries(req.headers), null, 2));
 
     const { type, payload: eventPayload } = payload;
 
@@ -31,18 +33,21 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get the room name from the webhook
-    const roomName = eventPayload.room?.name || eventPayload.roomName;
+    // Get the room name from multiple possible paths in webhook payload
+    const roomName = eventPayload.room?.name || 
+                     eventPayload.roomName || 
+                     eventPayload.room_name ||
+                     eventPayload.room?.id;
     
     if (!roomName) {
-      console.error('No room name in webhook payload');
+      console.error('No room name in webhook payload. Payload structure:', Object.keys(eventPayload));
       return new Response(
         JSON.stringify({ error: 'No room name provided' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Processing webhook for room:', roomName);
+    console.log('Processing webhook for room:', roomName, 'Event type:', type);
 
     // Find the session by room ID
     const { data: session, error: fetchError } = await supabase
@@ -83,8 +88,17 @@ serve(async (req) => {
       case 'recording.ready-to-download':
         console.log('Recording ready for session:', session.id);
         updateData.status = 'recorded';
-        updateData.daily_download_url = eventPayload.downloadUrl || eventPayload.download?.download_link;
-        updateData.duration_seconds = eventPayload.duration;
+        
+        // Extract download URL from multiple possible paths
+        const downloadUrl = eventPayload.downloadUrl || 
+                           eventPayload.download?.download_link || 
+                           eventPayload.download_link ||
+                           eventPayload.url;
+        
+        console.log('Download URL found:', downloadUrl);
+        updateData.daily_download_url = downloadUrl;
+        updateData.raw_video_url = downloadUrl; // Use the same URL for raw video
+        updateData.duration_seconds = eventPayload.duration || eventPayload.duration_seconds;
         
         // Trigger n8n workflow
         const n8nWebhookUrl = Deno.env.get('N8N_WEBHOOK_URL');

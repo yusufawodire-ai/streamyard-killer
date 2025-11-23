@@ -4,13 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Video, X, Circle } from "lucide-react";
+import { Loader2, Video, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { GlassCard } from "@/components/ui/glass-card";
 import Daily from "@daily-co/daily-js";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
+import { CustomRecordingControls } from "@/components/CustomRecordingControls";
 
 const Record = () => {
   const [brandId, setBrandId] = useState("");
@@ -178,15 +178,7 @@ const Record = () => {
           <div className="flex items-center justify-between">
             <div className="space-y-2">
               <h1 className="text-3xl font-bold">{title}</h1>
-              <div className="flex items-center gap-4">
-                <p className="text-sm text-muted-foreground">Session ID: {sessionId}</p>
-                {isRecording && (
-                  <Badge variant="destructive" className="animate-pulse">
-                    <Circle className="mr-1 h-3 w-3 fill-current" />
-                    Recording {formatDuration(recordingDuration)}
-                  </Badge>
-                )}
-              </div>
+              <p className="text-sm text-muted-foreground">Session ID: {sessionId}</p>
             </div>
             <div className="flex gap-2">
               {isRecording && (
@@ -201,7 +193,12 @@ const Record = () => {
             </div>
           </div>
           
-          <GlassCard className="p-0 overflow-hidden">
+          <GlassCard className="p-0 overflow-hidden relative">
+            <CustomRecordingControls 
+              isRecording={isRecording}
+              duration={recordingDuration}
+              sessionTitle={title}
+            />
             <div 
               id="daily-frame" 
               className="aspect-video bg-black"
