@@ -46,7 +46,12 @@ serve(async (req) => {
         const data = JSON.parse(event.data);
         console.log('AssemblyAI message:', data.message_type);
         
-        if (data.message_type === 'PartialTranscript') {
+        if (data.message_type === 'SessionBegins') {
+          console.log('AssemblyAI session ready');
+          browserSocket.send(JSON.stringify({ type: 'ready' }));
+        } else if (data.message_type === 'SessionInformation') {
+          console.log('AssemblyAI session info:', data);
+        } else if (data.message_type === 'PartialTranscript') {
           browserSocket.send(JSON.stringify({
             type: 'transcript',
             text: data.text,
@@ -82,12 +87,12 @@ serve(async (req) => {
     try {
       const data = JSON.parse(event.data);
       
-      if (data.type === 'audio' && assemblySocket) {
+      if (data.type === 'audio' && assemblySocket && assemblySocket.readyState === WebSocket.OPEN) {
         // Forward audio data to AssemblyAI
         assemblySocket.send(JSON.stringify({ audio_data: data.data }));
       } else if (data.type === 'terminate') {
         // Send terminate message to AssemblyAI
-        if (assemblySocket) {
+        if (assemblySocket && assemblySocket.readyState === WebSocket.OPEN) {
           assemblySocket.send(JSON.stringify({ terminate_session: true }));
         }
       }
