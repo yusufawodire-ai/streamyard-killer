@@ -18,6 +18,7 @@ const SessionDetail = () => {
   const navigate = useNavigate();
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [isStartingTranscription, setIsStartingTranscription] = useState(false);
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const { toast } = useToast();
 
   // Query for transcript data with auto-polling when processing
@@ -57,9 +58,9 @@ const SessionDetail = () => {
       return data;
     },
     refetchInterval: (query) => {
-      // Auto-refetch every 30 seconds if recording or processing
+      // Auto-refetch every 30 seconds if recording, processing, or uploading
       const status = query.state.data?.status;
-      if (status === 'recording' || status === 'processing') {
+      if (status === 'recording' || status === 'processing' || status === 'uploading') {
         return 30000; // 30 seconds
       }
       return false;
@@ -122,6 +123,36 @@ const SessionDetail = () => {
     }
   };
 
+  const handleUploadVideo = async () => {
+    if (!id) return;
+    
+    setIsUploadingVideo(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('upload-recording', {
+        body: { session_id: id }
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Video Upload Started",
+        description: "Video is being uploaded to permanent storage. This may take a few minutes.",
+      });
+      
+      // Refetch to show uploading status
+      setTimeout(() => refetch(), 2000);
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "Failed to upload video",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingVideo(false);
+    }
+  };
+
   // Delete session
   const handleDeleteSession = async () => {
     if (!id) return;
@@ -159,8 +190,10 @@ const SessionDetail = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-      case 'recorded':
         return 'bg-success/20 text-success border-success/30';
+      case 'recorded':
+      case 'uploading':
+        return 'bg-warning/20 text-warning border-warning/30';
       case 'recording':
       case 'processing':
         return 'bg-warning/20 text-warning border-warning/30';
@@ -178,6 +211,10 @@ const SessionDetail = () => {
         return 'Recording in progress...';
       case 'processing':
         return 'Processing recording...';
+      case 'uploading':
+        return 'Uploading to storage...';
+      case 'completed':
+        return 'Ready';
       case 'recorded':
         return 'Recording ready';
       case 'draft':
@@ -287,6 +324,56 @@ const SessionDetail = () => {
                   This usually takes 2-5 minutes after the recording finishes. Your video will appear automatically when ready. 
                   <span className="font-medium"> Page refreshes every 30 seconds.</span>
                 </AlertDescription>
+              </div>
+            </div>
+          </Alert>
+        )}
+
+        {session.status === 'uploading' && (
+          <Alert className="border-warning/50 bg-warning/10">
+            <div className="flex items-start gap-3">
+              <RefreshCw className="h-4 w-4 text-warning animate-spin mt-0.5" />
+              <div className="flex-1">
+                <AlertDescription className="text-warning-foreground font-medium mb-1">
+                  Uploading to permanent storage
+                </AlertDescription>
+                <AlertDescription className="text-warning-foreground/80 text-sm">
+                  Your video is being uploaded to Supabase Storage for permanent access. This may take 3-7 minutes depending on video size.
+                </AlertDescription>
+              </div>
+            </div>
+          </Alert>
+        )}
+
+        {session.status === 'recorded' && !session.final_video_url && session.daily_download_url && (
+          <Alert className="border-primary/50 bg-primary/10">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-4 w-4 text-primary mt-0.5" />
+              <div className="flex-1">
+                <AlertDescription className="text-primary-foreground font-medium mb-2">
+                  Upload to Permanent Storage
+                </AlertDescription>
+                <AlertDescription className="text-primary-foreground/80 text-sm mb-3">
+                  The video is currently using a temporary Daily.co link that expires. Upload it to permanent storage for never-expiring access.
+                </AlertDescription>
+                <Button 
+                  onClick={handleUploadVideo}
+                  disabled={isUploadingVideo}
+                  size="sm"
+                  variant="default"
+                >
+                  {isUploadingVideo ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" />
+                      Upload Now
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           </Alert>
