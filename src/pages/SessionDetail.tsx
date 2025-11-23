@@ -20,7 +20,7 @@ const SessionDetail = () => {
   const [isStartingTranscription, setIsStartingTranscription] = useState(false);
   const { toast } = useToast();
 
-  // Query for transcript data
+  // Query for transcript data with auto-polling when processing
   const { data: transcripts } = useQuery({
     queryKey: ['transcripts', id],
     queryFn: async () => {
@@ -34,6 +34,14 @@ const SessionDetail = () => {
       return data;
     },
     enabled: !!id,
+    refetchInterval: (query) => {
+      // Auto-poll every 30 seconds if any transcript is processing
+      const transcripts = query.state.data;
+      const hasProcessing = transcripts?.some(
+        t => t.status === 'processing' || t.status === 'pending'
+      );
+      return hasProcessing ? 30000 : false;
+    },
   });
 
   const { data: session, isLoading, refetch } = useQuery({
