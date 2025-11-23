@@ -5,7 +5,7 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Download, Clock, Calendar, FileText, Share2, RefreshCw, AlertCircle } from "lucide-react";
+import { ArrowLeft, Download, Clock, Calendar, FileText, Share2, AlertCircle, Trash2, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShareModal } from "@/components/ShareModal";
@@ -17,7 +17,6 @@ const SessionDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
   const { toast } = useToast();
 
   const { data: session, isLoading, refetch } = useQuery({
@@ -68,33 +67,37 @@ const SessionDetail = () => {
     };
   }, [id, refetch]);
 
-  // Sync recording manually
-  const handleSyncRecording = async () => {
+  // Delete session
+  const handleDeleteSession = async () => {
     if (!id) return;
     
-    setIsSyncing(true);
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this recording? This action cannot be undone.'
+    );
+    
+    if (!confirmed) return;
+    
     try {
-      const { data, error } = await supabase.functions.invoke('sync-recording', {
-        body: { session_id: id },
-      });
-
+      const { error } = await supabase
+        .from('sessions')
+        .delete()
+        .eq('id', id);
+      
       if (error) throw error;
-
+      
       toast({
-        title: "Sync Complete",
-        description: data.message || "Recording status updated",
+        title: "Session Deleted",
+        description: "Recording session has been permanently deleted",
       });
-
-      refetch();
+      
+      navigate('/');
     } catch (error) {
-      console.error('Sync error:', error);
+      console.error('Delete error:', error);
       toast({
-        title: "Sync Failed",
-        description: error instanceof Error ? error.message : "Failed to sync recording",
+        title: "Delete Failed",
+        description: error instanceof Error ? error.message : "Failed to delete session",
         variant: "destructive",
       });
-    } finally {
-      setIsSyncing(false);
     }
   };
 
@@ -191,21 +194,20 @@ const SessionDetail = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleSyncRecording}
-            disabled={isSyncing}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-            Sync
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
             onClick={() => setShareModalOpen(true)}
             className="gap-2"
           >
             <Share2 className="h-4 w-4" />
             Share
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleDeleteSession}
+            className="gap-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
           </Button>
         </div>
 
