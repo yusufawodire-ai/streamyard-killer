@@ -73,6 +73,41 @@ const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
     }
   };
 
+  const handleDeleteAll = async () => {
+    if (!sessions || sessions.length === 0) return;
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ALL ${sessions.length} recording sessions? This action cannot be undone.`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      const sessionIds = sessions.map(s => s.id);
+      
+      const { error } = await supabase
+        .from('sessions')
+        .delete()
+        .in('id', sessionIds);
+      
+      if (error) throw error;
+      
+      refetch();
+      
+      toast({
+        title: "All Sessions Deleted",
+        description: `${sessionIds.length} recording sessions have been deleted`,
+      });
+    } catch (error) {
+      console.error('Delete all error:', error);
+      toast({
+        title: "Delete Failed",
+        description: error instanceof Error ? error.message : "Failed to delete sessions",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
@@ -96,6 +131,19 @@ const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <p className="text-sm text-muted-foreground">
+          {sessions.length} session{sessions.length !== 1 ? 's' : ''} found
+        </p>
+        <Button 
+          variant="destructive" 
+          size="sm"
+          onClick={handleDeleteAll}
+        >
+          <Trash2 className="h-4 w-4 mr-2" />
+          Delete All Sessions
+        </Button>
+      </div>
       {sessions.map((session, index) => (
         <motion.div
           key={session.id}
