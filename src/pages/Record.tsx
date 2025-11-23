@@ -176,6 +176,17 @@ const Record = () => {
     }
   };
 
+  const startAudioCapture = async (ws: WebSocket) => {
+    console.log('Starting audio capture');
+    const capture = new AudioCapture();
+    await capture.start((audioBase64) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'audio', data: audioBase64 }));
+      }
+    });
+    audioCaptureRef.current = capture;
+  };
+
   const startRealtimeTranscription = async () => {
     try {
       // Connect to transcription WebSocket
@@ -183,25 +194,22 @@ const Record = () => {
         'wss://plklxboeramqlwgmhkpc.supabase.co/functions/v1/realtime-transcription'
       );
 
-      ws.onopen = async () => {
+      ws.onopen = () => {
         console.log('Transcription WebSocket connected');
         setIsTranscribing(true);
-
-        // Start capturing audio
-        const capture = new AudioCapture();
-        await capture.start((audioBase64) => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'audio', data: audioBase64 }));
-          }
-        });
-        audioCaptureRef.current = capture;
+        // Audio capture will start when we receive 'ready' signal
       };
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
           
-          if (data.type === 'transcript') {
+          // Wait for ready signal before starting audio
+          if (data.type === 'ready' && !audioCaptureRef.current) {
+            console.log('AssemblyAI ready, starting audio capture');
+            startAudioCapture(ws);
+          }
+          else if (data.type === 'transcript') {
             if (data.is_final) {
               setTranscriptText(prev => prev + (prev ? ' ' : '') + data.text);
               setPartialText('');
