@@ -33,10 +33,10 @@ const SessionDetail = () => {
       return data;
     },
     refetchInterval: (query) => {
-      // Auto-refetch every 10 seconds if recording or processing
+      // Auto-refetch every 30 seconds if recording or processing
       const status = query.state.data?.status;
       if (status === 'recording' || status === 'processing') {
-        return 10000;
+        return 30000; // 30 seconds
       }
       return false;
     },
@@ -183,13 +183,37 @@ const SessionDetail = () => {
           </Button>
         </div>
 
-        {(session.status === 'recording' || session.status === 'processing') && (
+        {session.status === 'recording' && (
+          <Alert className="border-warning/50 bg-warning/10">
+            <AlertCircle className="h-4 w-4 text-warning" />
+            <AlertDescription className="text-warning-foreground">
+              Recording is in progress. The video will appear here once the recording is complete.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {session.status === 'processing' && (
+          <Alert className="border-warning/50 bg-warning/10">
+            <div className="flex items-start gap-3">
+              <RefreshCw className="h-4 w-4 text-warning animate-spin mt-0.5" />
+              <div className="flex-1">
+                <AlertDescription className="text-warning-foreground font-medium mb-1">
+                  Daily.co is processing your recording
+                </AlertDescription>
+                <AlertDescription className="text-warning-foreground/80 text-sm">
+                  This usually takes 2-5 minutes after the recording finishes. Your video will appear automatically when ready. 
+                  <span className="font-medium"> Page refreshes every 30 seconds.</span>
+                </AlertDescription>
+              </div>
+            </div>
+          </Alert>
+        )}
+
+        {session.status === 'draft' && !session.daily_room_id && (
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {session.status === 'recording' 
-                ? 'Recording is in progress. The video will appear here once the recording is complete.'
-                : 'Your recording is being processed. This usually takes a few minutes.'}
+              Waiting for recording to start. Join the Daily.co room to begin recording.
             </AlertDescription>
           </Alert>
         )}
