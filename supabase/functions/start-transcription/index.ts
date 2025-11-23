@@ -54,15 +54,15 @@ serve(async (req) => {
       );
     }
 
-    if (!session.daily_download_url) {
-      console.error('No download URL available for session:', session_id);
+    if (!session.final_video_url) {
+      console.error('No video URL available for session:', session_id);
       return new Response(
         JSON.stringify({ error: 'Recording not ready yet' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Submitting to AssemblyAI:', session.daily_download_url);
+    console.log('Submitting to AssemblyAI:', session.final_video_url);
 
     // Get AssemblyAI API key
     const assemblyAIKey = Deno.env.get('ASSEMBLYAI_API_KEY');
@@ -82,7 +82,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        audio_url: session.daily_download_url,
+        audio_url: session.final_video_url,
         language_code: 'en',
       }),
     });

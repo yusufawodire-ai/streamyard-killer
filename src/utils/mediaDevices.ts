@@ -87,10 +87,10 @@ export const RESOLUTION_PRESETS = {
 // Calculate video bitrate based on resolution
 export const calculateVideoBitrate = (resolution: string): number => {
   const bitrates = {
-    '720p': 2500000,    // 2.5 Mbps
-    '1080p': 5000000,   // 5 Mbps
-    '1440p': 10000000,  // 10 Mbps
-    '4k': 20000000,     // 20 Mbps
+    '720p': 2000000,    // 2 Mbps (optimized)
+    '1080p': 3500000,   // 3.5 Mbps (optimized)
+    '1440p': 8000000,   // 8 Mbps (optimized)
+    '4k': 15000000,     // 15 Mbps (optimized)
   };
-  return bitrates[resolution as keyof typeof bitrates] || 5000000;
+  return bitrates[resolution as keyof typeof bitrates] || 3500000;
 };

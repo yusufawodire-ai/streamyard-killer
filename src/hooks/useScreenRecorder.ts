@@ -85,6 +85,7 @@ export const useScreenRecorder = () => {
         webcamVideoRef.current = webcamVideo;
 
         // Draw frames continuously
+        let lastFrameTime = 0;
         const drawFrame = () => {
           if (!canvasRef.current || !configRef.current) return;
 
@@ -94,6 +95,15 @@ export const useScreenRecorder = () => {
             animationFrameRef.current = requestAnimationFrame(drawFrame);
             return;
           }
+
+          // Frame-skipping optimization: limit to target framerate
+          const now = Date.now();
+          const frameInterval = 1000 / configRef.current.frameRate;
+          if (now - lastFrameTime < frameInterval - 2) {
+            animationFrameRef.current = requestAnimationFrame(drawFrame);
+            return;
+          }
+          lastFrameTime = now;
 
           // Draw screen (full canvas)
           ctx.drawImage(screenVideo, 0, 0, canvas.width, canvas.height);
@@ -173,8 +183,12 @@ export const useScreenRecorder = () => {
         console.log('Videos ready. Screen:', screenVideo.videoWidth, 'x', screenVideo.videoHeight);
         console.log('Webcam ready:', webcamVideo.videoWidth, 'x', webcamVideo.videoHeight);
 
-        // Start drawing
+        // Start drawing BEFORE capturing stream
         drawFrame();
+
+        // Wait for canvas to have drawn frames
+        await new Promise(resolve => setTimeout(resolve, 200));
+        console.log('Canvas ready, capturing stream...');
 
         // Get composed stream from canvas
         const composedVideoStream = canvas.captureStream(config.frameRate);
