@@ -152,8 +152,21 @@ serve(async (req) => {
           updateData.status = 'processing';
         }
         
-        // Auto-trigger transcription after recording is ready
+        // Auto-trigger video upload and transcription after recording is ready
         if (updateData.daily_download_url) {
+          // Trigger video upload in background (don't await)
+          console.log('Auto-triggering video upload for session:', session.id);
+          supabase.functions.invoke('upload-recording', {
+            body: { session_id: session.id }
+          }).then(result => {
+            if (result.error) {
+              console.error('Failed to trigger video upload:', result.error);
+            } else {
+              console.log('Video upload started:', result.data);
+            }
+          });
+
+          // Trigger transcription
           console.log('Auto-triggering transcription for session:', session.id);
           try {
             const transcriptResult = await supabase.functions.invoke('start-transcription', {

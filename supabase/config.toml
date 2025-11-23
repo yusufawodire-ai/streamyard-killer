@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.check-transcription]
 verify_jwt = false
+
+[functions.upload-recording]
+verify_jwt = false
