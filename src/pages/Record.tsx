@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Video, Square, Play, Pause, Upload } from "lucide-react";
+import { Loader2, Video, Square, Play, Pause, Upload, Eye, EyeOff, MoveUpLeft, MoveUpRight, MoveDownLeft, MoveDownRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { GlassCard } from "@/components/ui/glass-card";
 import { motion } from "framer-motion";
@@ -25,14 +25,34 @@ const Record = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isWebcamVisibleState, setIsWebcamVisibleState] = useState(true);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { state, startRecording, stopRecording, pauseRecording, resumeRecording, uploadRecording, updateWebcamPosition } = useScreenRecorder();
+  const { state, startRecording, stopRecording, pauseRecording, resumeRecording, uploadRecording, updateWebcamPosition, toggleWebcamVisibility, isWebcamVisible } = useScreenRecorder();
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleToggleWebcam = () => {
+    if (toggleWebcamVisibility) {
+      const newState = toggleWebcamVisibility();
+      setIsWebcamVisibleState(newState);
+      toast({
+        title: newState ? "Webcam Visible" : "Webcam Hidden",
+        description: `Webcam overlay is now ${newState ? 'visible' : 'hidden'}`,
+      });
+    }
+  };
+
+  const handlePositionChange = (position: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left') => {
+    updateWebcamPosition(position);
+    toast({
+      title: "Position Updated",
+      description: `Webcam moved to ${position.replace('-', ' ')}`,
+    });
   };
 
   const handleContinueToSettings = () => {
@@ -208,6 +228,72 @@ const Record = () => {
                     Stop & Save
                   </Button>
                 </div>
+
+                {/* Webcam Controls - Only show for screen-webcam mode */}
+                {recordingConfig?.mode === 'screen-webcam' && (
+                  <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="fixed top-6 right-6 z-[9999] space-y-2"
+                  >
+                    {/* Hide/Show Button */}
+                    <GlassCard className="p-3">
+                      <Button
+                        variant={isWebcamVisibleState ? "default" : "outline"}
+                        size="sm"
+                        onClick={handleToggleWebcam}
+                        className="w-full"
+                      >
+                        {isWebcamVisibleState ? (
+                          <><Eye className="h-4 w-4 mr-2" />Hide Webcam</>
+                        ) : (
+                          <><EyeOff className="h-4 w-4 mr-2" />Show Webcam</>
+                        )}
+                      </Button>
+                    </GlassCard>
+
+                    {/* Position Controls - Only show when webcam is visible */}
+                    {isWebcamVisibleState && (
+                      <GlassCard className="p-3">
+                        <h4 className="text-xs font-semibold mb-2 text-center">Webcam Position</h4>
+                        <div className="grid grid-cols-2 gap-1">
+                          <Button
+                            size="sm"
+                            variant={recordingConfig.webcam?.position === 'top-left' ? 'default' : 'outline'}
+                            onClick={() => handlePositionChange('top-left')}
+                            className="p-2"
+                          >
+                            <MoveUpLeft className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={recordingConfig.webcam?.position === 'top-right' ? 'default' : 'outline'}
+                            onClick={() => handlePositionChange('top-right')}
+                            className="p-2"
+                          >
+                            <MoveUpRight className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={recordingConfig.webcam?.position === 'bottom-left' ? 'default' : 'outline'}
+                            onClick={() => handlePositionChange('bottom-left')}
+                            className="p-2"
+                          >
+                            <MoveDownLeft className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={recordingConfig.webcam?.position === 'bottom-right' ? 'default' : 'outline'}
+                            onClick={() => handlePositionChange('bottom-right')}
+                            className="p-2"
+                          >
+                            <MoveDownRight className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </GlassCard>
+                    )}
+                  </motion.div>
+                )}
 
                 <p className="text-sm text-muted-foreground">
                   Your screen is being recorded. Click "Stop & Save" when finished.
