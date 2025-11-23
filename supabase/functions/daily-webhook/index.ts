@@ -152,6 +152,24 @@ serve(async (req) => {
           updateData.status = 'processing';
         }
         
+        // Auto-trigger transcription after recording is ready
+        if (updateData.daily_download_url) {
+          console.log('Auto-triggering transcription for session:', session.id);
+          try {
+            const transcriptResult = await supabase.functions.invoke('start-transcription', {
+              body: { session_id: session.id }
+            });
+            
+            if (transcriptResult.error) {
+              console.error('Failed to trigger transcription:', transcriptResult.error);
+            } else {
+              console.log('Transcription started successfully:', transcriptResult.data);
+            }
+          } catch (transcriptError) {
+            console.error('Error triggering transcription:', transcriptError);
+          }
+        }
+        
         // Trigger n8n workflow
         const n8nWebhookUrl = Deno.env.get('N8N_WEBHOOK_URL');
         if (n8nWebhookUrl) {

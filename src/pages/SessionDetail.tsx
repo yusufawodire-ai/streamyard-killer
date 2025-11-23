@@ -5,7 +5,7 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Download, Clock, Calendar, FileText, Share2, AlertCircle, Trash2, RefreshCw } from "lucide-react";
+import { ArrowLeft, Download, Clock, Calendar, FileText, Share2, AlertCircle, Trash2, RefreshCw, Loader2, Play } from "lucide-react";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShareModal } from "@/components/ShareModal";
@@ -17,7 +17,24 @@ const SessionDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [isStartingTranscription, setIsStartingTranscription] = useState(false);
   const { toast } = useToast();
+
+  // Query for transcript data
+  const { data: transcripts } = useQuery({
+    queryKey: ['transcripts', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('transcripts')
+        .select('*')
+        .eq('session_id', id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
 
   const { data: session, isLoading, refetch } = useQuery({
     queryKey: ['session', id],
@@ -66,6 +83,36 @@ const SessionDetail = () => {
       supabase.removeChannel(channel);
     };
   }, [id, refetch]);
+
+  const handleStartTranscription = async () => {
+    if (!id) return;
+    
+    setIsStartingTranscription(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('start-transcription', {
+        body: { session_id: id }
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Transcription Started",
+        description: "Transcription is being processed. This will take a few minutes.",
+      });
+      
+      // Refetch to show transcribing status
+      setTimeout(() => refetch(), 1000);
+    } catch (error) {
+      console.error('Transcription error:', error);
+      toast({
+        title: "Failed to Start Transcription",
+        description: error instanceof Error ? error.message : "Failed to start transcription",
+        variant: "destructive",
+      });
+    } finally {
+      setIsStartingTranscription(false);
+    }
+  };
 
   // Delete session
   const handleDeleteSession = async () => {
@@ -326,6 +373,81 @@ const SessionDetail = () => {
             </div>
           </GlassCard>
         </div>
+
+        {/* Transcript Section */}
+        <GlassCard className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Transcript
+            </h2>
+            {session.status === 'recorded' && !transcripts?.length && (
+              <Button 
+                onClick={handleStartTranscription}
+                disabled={isStartingTranscription}
+                size="sm"
+              >
+                {isStartingTranscription ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Starting...
+                  </>
+                ) : (
+                  <>
+                    <Play className="mr-2 h-4 w-4" />
+                    Generate Transcript
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+
+          {transcripts && transcripts.length > 0 ? (
+            transcripts.map((transcript) => (
+              <div key={transcript.id} className="space-y-3">
+                {transcript.status === 'pending' || transcript.status === 'processing' ? (
+                  <Alert className="border-warning/50 bg-warning/10">
+                    <RefreshCw className="h-4 w-4 text-warning animate-spin" />
+                    <AlertDescription className="text-warning-foreground">
+                      Transcription in progress... This usually takes 2-5 minutes.
+                    </AlertDescription>
+                  </Alert>
+                ) : transcript.status === 'completed' && transcript.full_text ? (
+                  <>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge className="bg-success/20 text-success border-success/30">
+                        Completed
+                      </Badge>
+                      {transcript.word_count && (
+                        <span className="text-sm text-muted-foreground">
+                          {transcript.word_count} words
+                        </span>
+                      )}
+                    </div>
+                    <div className="bg-muted/30 rounded-lg p-4 max-h-96 overflow-y-auto">
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                        {transcript.full_text}
+                      </p>
+                    </div>
+                  </>
+                ) : transcript.status === 'failed' ? (
+                  <Alert className="border-destructive/50 bg-destructive/10">
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                    <AlertDescription className="text-destructive">
+                      Transcription failed: {transcript.error_message || 'Unknown error'}
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+              </div>
+            ))
+          ) : (
+            <p className="text-muted-foreground text-center py-8">
+              {session.status === 'recorded' 
+                ? "Click 'Generate Transcript' to start transcription"
+                : "Transcript will be available after recording is complete"}
+            </p>
+          )}
+        </GlassCard>
 
         {session.description && (
           <GlassCard className="p-6">
