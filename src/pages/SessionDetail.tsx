@@ -5,15 +5,18 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Download, Clock, Calendar, FileText } from "lucide-react";
+import { ArrowLeft, Download, Clock, Calendar, FileText, Share2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShareModal } from "@/components/ShareModal";
+import { useState } from "react";
 
 const SessionDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
-  const { data: session, isLoading } = useQuery({
+  const { data: session, isLoading, refetch } = useQuery({
     queryKey: ['session', id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -100,6 +103,15 @@ const SessionDetail = () => {
           <Badge className={getStatusColor(session.status)}>
             {session.status}
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShareModalOpen(true)}
+            className="gap-2"
+          >
+            <Share2 className="h-4 w-4" />
+            Share
+          </Button>
         </div>
 
         <VideoPlayer
@@ -196,6 +208,15 @@ const SessionDetail = () => {
             <p className="text-destructive/80">{session.error_message}</p>
           </GlassCard>
         )}
+
+        <ShareModal
+          open={shareModalOpen}
+          onOpenChange={setShareModalOpen}
+          sessionId={session.id}
+          shareToken={session.share_token}
+          isPublic={session.is_public}
+          onShareToggle={() => refetch()}
+        />
       </motion.div>
     </div>
   );

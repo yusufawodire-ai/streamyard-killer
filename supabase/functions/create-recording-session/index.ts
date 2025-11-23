@@ -53,6 +53,7 @@ serve(async (req) => {
       body: JSON.stringify({
         properties: {
           enable_recording: 'cloud',
+          start_cloud_recording: true,
           enable_screenshare: true,
           exp: Math.floor(Date.now() / 1000) + (4 * 60 * 60), // 4 hours
         },

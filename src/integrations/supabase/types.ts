@@ -110,12 +110,16 @@ export type Database = {
           error_message: string | null
           final_video_url: string | null
           id: string
+          is_public: boolean | null
           raw_video_url: string | null
           recorded_at: string | null
+          share_expires_at: string | null
+          share_token: string | null
           status: string
           title: string
           transcript_url: string | null
           updated_at: string | null
+          view_count: number | null
         }
         Insert: {
           brand_id: string
@@ -129,12 +133,16 @@ export type Database = {
           error_message?: string | null
           final_video_url?: string | null
           id?: string
+          is_public?: boolean | null
           raw_video_url?: string | null
           recorded_at?: string | null
+          share_expires_at?: string | null
+          share_token?: string | null
           status?: string
           title: string
           transcript_url?: string | null
           updated_at?: string | null
+          view_count?: number | null
         }
         Update: {
           brand_id?: string
@@ -148,12 +156,16 @@ export type Database = {
           error_message?: string | null
           final_video_url?: string | null
           id?: string
+          is_public?: boolean | null
           raw_video_url?: string | null
           recorded_at?: string | null
+          share_expires_at?: string | null
+          share_token?: string | null
           status?: string
           title?: string
           transcript_url?: string | null
           updated_at?: string | null
+          view_count?: number | null
         }
         Relationships: []
       }
