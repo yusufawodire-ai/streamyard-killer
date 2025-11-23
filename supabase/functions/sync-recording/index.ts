@@ -93,16 +93,33 @@ serve(async (req) => {
       updated_at: new Date().toISOString(),
     };
 
-    if (recording.status === 'finished' && recording.download_link) {
-      console.log('Recording finished with download link available');
-      updateData.status = 'recorded';
-      updateData.daily_download_url = recording.download_link;
-      updateData.raw_video_url = recording.download_link;
-      updateData.duration_seconds = recording.duration;
-    } else if (recording.status === 'finished') {
-      // Recording finished but download not ready yet
-      console.log('Recording finished but download link not ready yet');
-      updateData.status = 'processing';
+    if (recording.status === 'finished') {
+      console.log('Recording finished, fetching access link...');
+      
+      // Make additional API call to get the actual download link
+      const accessLinkResponse = await fetch(
+        `https://api.daily.co/v1/recordings/${recording.id}/access-link`,
+        {
+          headers: {
+            'Authorization': `Bearer ${dailyApiKey}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (accessLinkResponse.ok) {
+        const accessLinkData = await accessLinkResponse.json();
+        console.log('Access link fetched successfully:', JSON.stringify(accessLinkData, null, 2));
+        
+        updateData.status = 'recorded';
+        updateData.daily_download_url = accessLinkData.download_link;
+        updateData.raw_video_url = accessLinkData.download_link;
+        updateData.duration_seconds = recording.duration;
+      } else {
+        const errorText = await accessLinkResponse.text();
+        console.error('Failed to fetch access link:', errorText);
+        updateData.status = 'processing';
+      }
     } else if (recording.status === 'recording') {
       updateData.status = 'recording';
     } else if (recording.status === 'processing') {
