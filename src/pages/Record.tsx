@@ -4,12 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Video, X } from "lucide-react";
+import { Loader2, Video, X, Circle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { GlassCard } from "@/components/ui/glass-card";
 import Daily from "@daily-co/daily-js";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 
 const Record = () => {
   const [brandId, setBrandId] = useState("");
@@ -18,6 +19,8 @@ const Record = () => {
   const [roomUrl, setRoomUrl] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [callFrame, setCallFrame] = useState<any>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -32,6 +35,33 @@ const Record = () => {
       setCallFrame(frame);
 
       frame.on('left-meeting', handleLeaveCall);
+      
+      // Auto-start recording when joined
+      frame.on('joined-meeting', async () => {
+        try {
+          await frame.startRecording();
+          setIsRecording(true);
+          toast({
+            title: "Recording Started",
+            description: "Your session is now being recorded",
+          });
+        } catch (error) {
+          console.error('Failed to start recording:', error);
+          toast({
+            title: "Recording Failed",
+            description: error instanceof Error ? error.message : "Failed to start recording",
+            variant: "destructive",
+          });
+        }
+      });
+
+      frame.on('recording-started', () => {
+        setIsRecording(true);
+      });
+
+      frame.on('recording-stopped', () => {
+        setIsRecording(false);
+      });
     }
 
     return () => {
@@ -40,6 +70,19 @@ const Record = () => {
       }
     };
   }, [roomUrl]);
+
+  // Recording duration timer
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isRecording) {
+      interval = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
+      }, 1000);
+    } else {
+      setRecordingDuration(0);
+    }
+    return () => clearInterval(interval);
+  }, [isRecording]);
 
   const handleCreateSession = async () => {
     if (!brandId || !title.trim()) {
@@ -83,6 +126,25 @@ const Record = () => {
     }
   };
 
+  const handleStopRecording = async () => {
+    if (callFrame && isRecording) {
+      try {
+        await callFrame.stopRecording();
+        toast({
+          title: "Recording Stopped",
+          description: "Your recording has been saved",
+        });
+      } catch (error) {
+        console.error('Failed to stop recording:', error);
+        toast({
+          title: "Error",
+          description: "Failed to stop recording",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
   const handleLeaveCall = () => {
     if (callFrame) {
       callFrame.destroy();
@@ -93,9 +155,16 @@ const Record = () => {
       description: "Your recording is being processed.",
     });
     setRoomUrl(null);
+    setIsRecording(false);
     if (sessionId) {
       navigate(`/session/${sessionId}`);
     }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (roomUrl) {
@@ -107,14 +176,29 @@ const Record = () => {
           className="max-w-5xl mx-auto space-y-4"
         >
           <div className="flex items-center justify-between">
-            <div>
+            <div className="space-y-2">
               <h1 className="text-3xl font-bold">{title}</h1>
-              <p className="text-sm text-muted-foreground mt-1">Session ID: {sessionId}</p>
+              <div className="flex items-center gap-4">
+                <p className="text-sm text-muted-foreground">Session ID: {sessionId}</p>
+                {isRecording && (
+                  <Badge variant="destructive" className="animate-pulse">
+                    <Circle className="mr-1 h-3 w-3 fill-current" />
+                    Recording {formatDuration(recordingDuration)}
+                  </Badge>
+                )}
+              </div>
             </div>
-            <Button variant="destructive" onClick={handleLeaveCall}>
-              <X className="mr-2 h-4 w-4" />
-              End Recording
-            </Button>
+            <div className="flex gap-2">
+              {isRecording && (
+                <Button variant="outline" onClick={handleStopRecording}>
+                  Stop Recording
+                </Button>
+              )}
+              <Button variant="destructive" onClick={handleLeaveCall}>
+                <X className="mr-2 h-4 w-4" />
+                End Session
+              </Button>
+            </div>
           </div>
           
           <GlassCard className="p-0 overflow-hidden">
