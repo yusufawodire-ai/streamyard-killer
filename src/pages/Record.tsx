@@ -11,6 +11,8 @@ import Daily from "@daily-co/daily-js";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { CustomRecordingControls } from "@/components/CustomRecordingControls";
+import { RealtimeTranscript } from "@/components/RealtimeTranscript";
+import { AudioCapture } from "@/utils/AudioCapture";
 
 const Record = () => {
   const [brandId, setBrandId] = useState("");
@@ -21,9 +23,14 @@ const Record = () => {
   const [callFrame, setCallFrame] = useState<any>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcriptText, setTranscriptText] = useState('');
+  const [partialText, setPartialText] = useState('');
   const { toast } = useToast();
   const navigate = useNavigate();
   const dailyFrameRef = useRef<HTMLDivElement>(null);
+  const audioCaptureRef = useRef<AudioCapture | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     if (roomUrl && !callFrame && dailyFrameRef.current) {
@@ -52,9 +59,13 @@ const Record = () => {
             try {
               await frame.startRecording();
               setIsRecording(true);
+              
+              // Start real-time transcription
+              await startRealtimeTranscription();
+              
               toast({
                 title: "Recording Started",
-                description: "Your session is now being recorded",
+                description: "Your session is now being recorded with live transcription",
               });
             } catch (error) {
               console.error('Failed to start recording:', error);
@@ -165,17 +176,113 @@ const Record = () => {
     }
   };
 
-  const handleLeaveCall = () => {
+  const startRealtimeTranscription = async () => {
+    try {
+      // Connect to transcription WebSocket
+      const ws = new WebSocket(
+        'wss://plklxboeramqlwgmhkpc.supabase.co/functions/v1/realtime-transcription'
+      );
+
+      ws.onopen = async () => {
+        console.log('Transcription WebSocket connected');
+        setIsTranscribing(true);
+
+        // Start capturing audio
+        const capture = new AudioCapture();
+        await capture.start((audioBase64) => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'audio', data: audioBase64 }));
+          }
+        });
+        audioCaptureRef.current = capture;
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.type === 'transcript') {
+            if (data.is_final) {
+              setTranscriptText(prev => prev + (prev ? ' ' : '') + data.text);
+              setPartialText('');
+            } else {
+              setPartialText(data.text);
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing transcript:', error);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('Transcription WebSocket error:', error);
+        toast({
+          title: "Transcription Error",
+          description: "Failed to connect to transcription service",
+          variant: "destructive",
+        });
+      };
+
+      ws.onclose = () => {
+        console.log('Transcription WebSocket closed');
+        setIsTranscribing(false);
+      };
+
+      wsRef.current = ws;
+    } catch (error) {
+      console.error('Error starting transcription:', error);
+      toast({
+        title: "Transcription Error",
+        description: "Failed to start real-time transcription",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleLeaveCall = async () => {
+    // Stop transcription
+    if (audioCaptureRef.current) {
+      audioCaptureRef.current.stop();
+      audioCaptureRef.current = null;
+    }
+    
+    if (wsRef.current) {
+      wsRef.current.send(JSON.stringify({ type: 'terminate' }));
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
+    // Save transcript to database if we have text
+    if (transcriptText.trim() && sessionId) {
+      try {
+        await supabase.from('transcripts').insert({
+          session_id: sessionId,
+          full_text: transcriptText,
+          status: 'completed',
+          provider: 'assemblyai',
+          language: 'en',
+          completed_at: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('Error saving transcript:', error);
+      }
+    }
+
+    // Clean up Daily call
     if (callFrame) {
       callFrame.destroy();
       setCallFrame(null);
     }
+    
     toast({
       title: "Recording Ended",
       description: "Your recording is being processed.",
     });
+    
     setRoomUrl(null);
     setIsRecording(false);
+    setIsTranscribing(false);
+    
     if (sessionId) {
       navigate(`/session/${sessionId}`);
     }
@@ -225,6 +332,12 @@ const Record = () => {
               style={{ width: '100%', minHeight: '600px' }}
             />
           </GlassCard>
+
+          <RealtimeTranscript 
+            isActive={isTranscribing}
+            transcript={transcriptText}
+            partialText={partialText}
+          />
         </motion.div>
       </div>
     );
