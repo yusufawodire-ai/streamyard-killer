@@ -41,9 +41,10 @@ serve(async (req) => {
 
     if (!type || !eventPayload) {
       console.error('Invalid webhook payload structure');
+      // Return 200 to prevent webhook retries
       return new Response(
         JSON.stringify({ error: 'Invalid webhook payload' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -60,9 +61,10 @@ serve(async (req) => {
     
     if (!roomName) {
       console.error('No room name in webhook payload. Payload structure:', Object.keys(eventPayload));
+      // Return 200 to prevent webhook retries
       return new Response(
         JSON.stringify({ error: 'No room name provided' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -77,17 +79,19 @@ serve(async (req) => {
 
     if (fetchError) {
       console.error('Error fetching session:', fetchError);
+      // Return 200 to prevent webhook retries
       return new Response(
         JSON.stringify({ error: 'Database error', details: fetchError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!session) {
       console.warn('No session found for room:', roomName);
+      // Return 200 to prevent webhook retries
       return new Response(
         JSON.stringify({ message: 'No matching session found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -200,9 +204,10 @@ serve(async (req) => {
 
     if (updateError) {
       console.error('Error updating session:', updateError);
+      // Return 200 to prevent webhook retries
       return new Response(
         JSON.stringify({ error: 'Failed to update session', details: updateError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -216,9 +221,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Unexpected error in daily-webhook:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    // Always return 200 to prevent webhook retries
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

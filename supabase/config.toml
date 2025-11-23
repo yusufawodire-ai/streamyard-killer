@@ -2,3 +2,6 @@ project_id = "plklxboeramqlwgmhkpc"
 
 [functions.setup-daily-webhook]
 verify_jwt = false
+
+[functions.daily-webhook]
+verify_jwt = false
