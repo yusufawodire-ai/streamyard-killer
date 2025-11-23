@@ -5,14 +5,13 @@ import { ExternalLink, AlertCircle } from "lucide-react";
 
 interface VideoPlayerProps {
   videoUrl: string | null;
-  dailyUrl?: string | null;
   title?: string;
 }
 
-export const VideoPlayer = ({ videoUrl, dailyUrl, title }: VideoPlayerProps) => {
+export const VideoPlayer = ({ videoUrl, title }: VideoPlayerProps) => {
   const [error, setError] = useState(false);
 
-  if (!videoUrl && !dailyUrl) {
+  if (!videoUrl) {
     return (
       <GlassCard className="p-8 text-center">
         <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -24,26 +23,16 @@ export const VideoPlayer = ({ videoUrl, dailyUrl, title }: VideoPlayerProps) => 
     );
   }
 
-  if (error && dailyUrl) {
+  if (error) {
     return (
       <GlassCard className="p-8 text-center">
         <AlertCircle className="h-12 w-12 mx-auto mb-4 text-warning" />
         <h3 className="text-lg font-semibold mb-2">Video Not Accessible</h3>
-        <p className="text-muted-foreground mb-4">
-          The video cannot be played directly, but you can view it on Daily.co
+        <p className="text-muted-foreground">
+          The video cannot be played. Please try refreshing the page.
         </p>
-        <Button asChild>
-          <a href={dailyUrl} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="mr-2 h-4 w-4" />
-            Open in Daily.co
-          </a>
-        </Button>
       </GlassCard>
     );
-  }
-
-  if (!videoUrl) {
-    return null;
   }
 
   return (

@@ -1,13 +1,7 @@
 project_id = "plklxboeramqlwgmhkpc"
 
-[functions.setup-daily-webhook]
-verify_jwt = false
-
-[functions.daily-webhook]
-verify_jwt = false
-
 [functions.check-transcription]
 verify_jwt = false
 
-[functions.upload-recording]
+[functions.start-transcription]
 verify_jwt = false
