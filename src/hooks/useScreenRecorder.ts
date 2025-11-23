@@ -29,6 +29,7 @@ export const useScreenRecorder = () => {
   const webcamVideoRef = useRef<HTMLVideoElement | null>(null);
   const webcamStreamRef = useRef<MediaStream | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
+  const webcamVisibleRef = useRef<boolean>(true);
 
   const startRecording = useCallback(async (config?: RecordingConfig) => {
     try {
@@ -71,6 +72,23 @@ export const useScreenRecorder = () => {
         canvas.width = config.resolution.width;
         canvas.height = config.resolution.height;
         canvasRef.current = canvas;
+        
+        // Style and append canvas to DOM for live preview
+        canvas.style.position = 'fixed';
+        canvas.style.top = '50%';
+        canvas.style.left = '50%';
+        canvas.style.transform = 'translate(-50%, -50%)';
+        canvas.style.width = '80vw';
+        canvas.style.height = 'auto';
+        canvas.style.maxHeight = '80vh';
+        canvas.style.zIndex = '9998';
+        canvas.style.border = '3px solid hsl(var(--primary))';
+        canvas.style.borderRadius = '8px';
+        canvas.style.boxShadow = '0 20px 60px rgba(0,0,0,0.8)';
+        canvas.style.backgroundColor = '#000';
+        document.body.appendChild(canvas);
+        console.log('✅ Canvas preview added to DOM');
+        
         const ctx = canvas.getContext('2d')!;
 
         // Create video elements
@@ -123,43 +141,46 @@ export const useScreenRecorder = () => {
           };
           const pos = positions[configRef.current.webcam?.position || 'bottom-right'];
 
-          // Draw border
-          if (config.webcam?.borderWidth && config.webcam.borderWidth > 0) {
-            ctx.strokeStyle = config.webcam.borderColor;
-            ctx.lineWidth = config.webcam.borderWidth;
+          // Only draw webcam if visible
+          if (webcamVisibleRef.current) {
+            // Draw border
+            if (config.webcam?.borderWidth && config.webcam.borderWidth > 0) {
+              ctx.strokeStyle = config.webcam.borderColor;
+              ctx.lineWidth = config.webcam.borderWidth;
 
-            if (config.webcam.shape === 'circle') {
+              if (config.webcam.shape === 'circle') {
+                ctx.beginPath();
+                ctx.arc(pos.x + webcamWidth / 2, pos.y + webcamHeight / 2, webcamWidth / 2, 0, Math.PI * 2);
+                ctx.stroke();
+              } else {
+                ctx.strokeRect(pos.x, pos.y, webcamWidth, webcamHeight);
+              }
+            }
+
+            // Draw webcam with clipping
+            ctx.save();
+            if (config.webcam?.shape === 'circle') {
               ctx.beginPath();
               ctx.arc(pos.x + webcamWidth / 2, pos.y + webcamHeight / 2, webcamWidth / 2, 0, Math.PI * 2);
-              ctx.stroke();
-            } else {
-              ctx.strokeRect(pos.x, pos.y, webcamWidth, webcamHeight);
+              ctx.clip();
+            } else if (config.webcam?.shape === 'rounded') {
+              const radius = 10;
+              ctx.beginPath();
+              ctx.moveTo(pos.x + radius, pos.y);
+              ctx.lineTo(pos.x + webcamWidth - radius, pos.y);
+              ctx.quadraticCurveTo(pos.x + webcamWidth, pos.y, pos.x + webcamWidth, pos.y + radius);
+              ctx.lineTo(pos.x + webcamWidth, pos.y + webcamHeight - radius);
+              ctx.quadraticCurveTo(pos.x + webcamWidth, pos.y + webcamHeight, pos.x + webcamWidth - radius, pos.y + webcamHeight);
+              ctx.lineTo(pos.x + radius, pos.y + webcamHeight);
+              ctx.quadraticCurveTo(pos.x, pos.y + webcamHeight, pos.x, pos.y + webcamHeight - radius);
+              ctx.lineTo(pos.x, pos.y + radius);
+              ctx.quadraticCurveTo(pos.x, pos.y, pos.x + radius, pos.y);
+              ctx.closePath();
+              ctx.clip();
             }
+            ctx.drawImage(webcamVideo, pos.x, pos.y, webcamWidth, webcamHeight);
+            ctx.restore();
           }
-
-          // Draw webcam with clipping
-          ctx.save();
-          if (config.webcam?.shape === 'circle') {
-            ctx.beginPath();
-            ctx.arc(pos.x + webcamWidth / 2, pos.y + webcamHeight / 2, webcamWidth / 2, 0, Math.PI * 2);
-            ctx.clip();
-          } else if (config.webcam?.shape === 'rounded') {
-            const radius = 10;
-            ctx.beginPath();
-            ctx.moveTo(pos.x + radius, pos.y);
-            ctx.lineTo(pos.x + webcamWidth - radius, pos.y);
-            ctx.quadraticCurveTo(pos.x + webcamWidth, pos.y, pos.x + webcamWidth, pos.y + radius);
-            ctx.lineTo(pos.x + webcamWidth, pos.y + webcamHeight - radius);
-            ctx.quadraticCurveTo(pos.x + webcamWidth, pos.y + webcamHeight, pos.x + webcamWidth - radius, pos.y + webcamHeight);
-            ctx.lineTo(pos.x + radius, pos.y + webcamHeight);
-            ctx.quadraticCurveTo(pos.x, pos.y + webcamHeight, pos.x, pos.y + webcamHeight - radius);
-            ctx.lineTo(pos.x, pos.y + radius);
-            ctx.quadraticCurveTo(pos.x, pos.y, pos.x + radius, pos.y);
-            ctx.closePath();
-            ctx.clip();
-          }
-          ctx.drawImage(webcamVideo, pos.x, pos.y, webcamWidth, webcamHeight);
-          ctx.restore();
 
           animationFrameRef.current = requestAnimationFrame(drawFrame);
         };
@@ -302,6 +323,12 @@ export const useScreenRecorder = () => {
           webcamVideoRef.current = null;
         }
 
+        // Remove canvas from DOM
+        if (canvasRef.current && canvasRef.current.parentNode) {
+          document.body.removeChild(canvasRef.current);
+          console.log('✅ Canvas preview removed from DOM');
+        }
+        
         // Clean up canvas
         canvasRef.current = null;
 
@@ -368,6 +395,16 @@ export const useScreenRecorder = () => {
     }
   }, []);
 
+  const toggleWebcamVisibility = useCallback(() => {
+    webcamVisibleRef.current = !webcamVisibleRef.current;
+    console.log('Webcam visibility:', webcamVisibleRef.current);
+    return webcamVisibleRef.current;
+  }, []);
+
+  const isWebcamVisible = useCallback(() => {
+    return webcamVisibleRef.current;
+  }, []);
+
   return {
     state,
     startRecording,
@@ -376,5 +413,7 @@ export const useScreenRecorder = () => {
     resumeRecording,
     uploadRecording,
     updateWebcamPosition,
+    toggleWebcamVisibility,
+    isWebcamVisible,
   };
 };
