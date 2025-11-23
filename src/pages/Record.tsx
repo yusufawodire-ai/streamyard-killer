@@ -12,10 +12,14 @@ import { useNavigate } from "react-router-dom";
 import { useScreenRecorder } from "@/hooks/useScreenRecorder";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import RecordingSettings from "@/components/RecordingSettings";
+import { RecordingConfig } from "@/types/recording";
 
 const Record = () => {
+  const [currentStep, setCurrentStep] = useState<'setup' | 'settings' | 'recording'>('setup');
   const [brandId, setBrandId] = useState("");
   const [title, setTitle] = useState("");
+  const [recordingConfig, setRecordingConfig] = useState<RecordingConfig | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -30,7 +34,7 @@ const Record = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleStartRecording = async () => {
+  const handleContinueToSettings = () => {
     if (!brandId || !title.trim()) {
       toast({
         title: "Validation Error",
@@ -39,8 +43,12 @@ const Record = () => {
       });
       return;
     }
+    setCurrentStep('settings');
+  };
 
+  const handleStartRecording = async (config: RecordingConfig) => {
     setIsCreating(true);
+    setRecordingConfig(config);
 
     try {
       // Create session in database
@@ -50,6 +58,7 @@ const Record = () => {
           brand_id: brandId,
           title: title.trim(),
           status: 'recording',
+          recording_metadata: config as any,
         })
         .select()
         .single();
@@ -57,13 +66,14 @@ const Record = () => {
       if (error) throw error;
 
       setSessionId(data.id);
+      setCurrentStep('recording');
 
-      // Start screen recording
-      await startRecording();
+      // Start screen recording with config
+      await startRecording(config);
 
       toast({
         title: "Recording Started",
-        description: "Your screen is now being recorded",
+        description: `Recording in ${config.mode} mode`,
       });
     } catch (error) {
       console.error('Error starting recording:', error);
@@ -134,8 +144,20 @@ const Record = () => {
     }
   };
 
+  // Show settings step
+  if (currentStep === 'settings') {
+    return (
+      <RecordingSettings
+        brandId={brandId}
+        title={title}
+        onBack={() => setCurrentStep('setup')}
+        onStartRecording={handleStartRecording}
+      />
+    );
+  }
+
   // Show recording interface
-  if (state.isRecording || isUploading) {
+  if (currentStep === 'recording' && (state.isRecording || isUploading)) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-background via-background to-primary/5">
         <motion.div
@@ -240,22 +262,13 @@ const Record = () => {
             </div>
 
             <Button 
-              onClick={handleStartRecording} 
+              onClick={handleContinueToSettings} 
               disabled={isCreating}
               className="w-full h-14 text-lg"
               size="lg"
             >
-              {isCreating ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Initializing...
-                </>
-              ) : (
-                <>
-                  <Video className="mr-2 h-5 w-5" />
-                  Start Recording
-                </>
-              )}
+              <Video className="mr-2 h-5 w-5" />
+              Continue to Settings
             </Button>
           </div>
         </GlassCard>

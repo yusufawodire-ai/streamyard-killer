@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import RecordRTC from 'recordrtc';
 import { supabase } from '@/integrations/supabase/client';
+import { RecordingConfig } from '@/types/recording';
 
 export interface RecorderState {
   isRecording: boolean;
@@ -20,15 +21,19 @@ export const useScreenRecorder = () => {
   const recorderRef = useRef<RecordRTC | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const configRef = useRef<RecordingConfig | null>(null);
 
-  const startRecording = useCallback(async () => {
+  const startRecording = useCallback(async (config?: RecordingConfig) => {
     try {
-      // Request screen + audio
+      // Store config for Phase 2
+      configRef.current = config || null;
+
+      // Request screen + audio with config settings
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: { 
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          frameRate: { ideal: 30 }
+          width: { ideal: config?.resolution.width || 1920 },
+          height: { ideal: config?.resolution.height || 1080 },
+          frameRate: { ideal: config?.frameRate || 30 }
         },
         audio: true,
       });
