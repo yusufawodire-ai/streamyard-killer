@@ -5,19 +5,31 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Download, Clock, Calendar, FileText, Share2, RefreshCw, AlertCircle } from "lucide-react";
+import { ArrowLeft, Download, Clock, Calendar, FileText, Share2, RefreshCw, AlertCircle, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShareModal } from "@/components/ShareModal";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const SessionDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
   const { data: session, isLoading, refetch } = useQuery({
@@ -95,6 +107,36 @@ const SessionDetail = () => {
       });
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handleDeleteSession = async () => {
+    if (!id) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('sessions')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Session Deleted",
+        description: "Recording session has been permanently deleted",
+      });
+
+      navigate('/sessions');
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast({
+        title: "Delete Failed",
+        description: error instanceof Error ? error.message : "Failed to delete session",
+        variant: "destructive",
+      });
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -206,6 +248,15 @@ const SessionDetail = () => {
           >
             <Share2 className="h-4 w-4" />
             Share
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDeleteDialogOpen(true)}
+            className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
           </Button>
         </div>
 
@@ -347,6 +398,27 @@ const SessionDetail = () => {
           isPublic={session.is_public}
           onShareToggle={() => refetch()}
         />
+
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Recording Session</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete "{session.title}"? This action cannot be undone and will permanently remove the session and all associated data.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteSession}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </motion.div>
     </div>
   );

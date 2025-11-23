@@ -1,11 +1,23 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
-import { Video, Clock, FileText, Eye } from "lucide-react";
+import { Video, Clock, FileText, Eye, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface RecordingSessionProps {
   selectedBrand: string | null;
@@ -20,7 +32,12 @@ const formatDuration = (seconds: number | null): string => {
 
 const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
   const navigate = useNavigate();
-  const { data: sessions, isLoading } = useQuery({
+  const { toast } = useToast();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const { data: sessions, isLoading, refetch } = useQuery({
     queryKey: ['sessions', selectedBrand],
     queryFn: async () => {
       let query = supabase
@@ -37,6 +54,44 @@ const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
       return data;
     },
   });
+
+  const handleDeleteClick = (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    setSessionToDelete(sessionId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!sessionToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('sessions')
+        .delete()
+        .eq('id', sessionToDelete);
+
+      if (error) throw error;
+
+      toast({
+        title: "Session Deleted",
+        description: "Recording session has been permanently deleted",
+      });
+
+      refetch();
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast({
+        title: "Delete Failed",
+        description: error instanceof Error ? error.message : "Failed to delete session",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setSessionToDelete(null);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -60,8 +115,9 @@ const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
   }
 
   return (
-    <div className="space-y-4">
-      {sessions.map((session, index) => (
+    <>
+      <div className="space-y-4">
+        {sessions.map((session, index) => (
         <motion.div
           key={session.id}
           initial={{ opacity: 0, x: -20 }}
@@ -122,12 +178,42 @@ const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
                   <Eye className="h-4 w-4 mr-1" />
                   View
                 </Button>
+                <Button 
+                  size="sm" 
+                  variant="ghost"
+                  onClick={(e) => handleDeleteClick(e, session.id)}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           </GlassCard>
         </motion.div>
-      ))}
-    </div>
+        ))}
+      </div>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Recording Session</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this recording session? This action cannot be undone and will permanently remove the session and all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
