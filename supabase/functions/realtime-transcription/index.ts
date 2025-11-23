@@ -31,9 +31,14 @@ serve(async (req) => {
   browserSocket.onopen = () => {
     console.log('Browser WebSocket connected');
     
-    // Connect to AssemblyAI's real-time API with token as query parameter
+    // Connect to AssemblyAI's v3 streaming API with Authorization header
     assemblySocket = new WebSocket(
-      `wss://api.assemblyai.com/v2/realtime/ws?sample_rate=16000&token=${ASSEMBLYAI_API_KEY}`
+      'wss://streaming.assemblyai.com/v3/ws?sample_rate=16000',
+      {
+        headers: {
+          'Authorization': ASSEMBLYAI_API_KEY
+        }
+      }
     );
 
     assemblySocket.onopen = () => {
@@ -44,33 +49,30 @@ serve(async (req) => {
     assemblySocket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log('AssemblyAI message:', data);
+        console.log('AssemblyAI v3 message:', data);
         
-        // Handle all message types
-        if (data.message_type === 'SessionBegins') {
-          console.log('AssemblyAI session ready');
+        // Handle all v3 event types
+        if (data.event === 'session_begins') {
+          console.log('AssemblyAI v3 session ready');
           // Check browser socket state before sending
           if (browserSocket.readyState === WebSocket.OPEN) {
             browserSocket.send(JSON.stringify({ type: 'ready' }));
           }
         } 
-        else if (data.message_type === 'SessionInformation') {
-          console.log('AssemblyAI session info:', data);
-        }
-        else if (data.message_type === 'PartialTranscript' && data.text) {
+        else if (data.event === 'partial' && data.transcript) {
           if (browserSocket.readyState === WebSocket.OPEN) {
             browserSocket.send(JSON.stringify({
               type: 'transcript',
-              text: data.text,
+              text: data.transcript,
               is_final: false
             }));
           }
         } 
-        else if (data.message_type === 'FinalTranscript' && data.text) {
+        else if (data.event === 'final' && data.transcript) {
           if (browserSocket.readyState === WebSocket.OPEN) {
             browserSocket.send(JSON.stringify({
               type: 'transcript',
-              text: data.text,
+              text: data.transcript,
               is_final: true
             }));
           }
@@ -85,8 +87,8 @@ serve(async (req) => {
           }
         }
         else {
-          // Log unknown message types for debugging
-          console.log('Unknown AssemblyAI message type:', data.message_type);
+          // Log unknown event types for debugging
+          console.log('Unknown AssemblyAI event type:', data.event);
         }
       } catch (error) {
         console.error('Error parsing AssemblyAI message:', error);
@@ -112,8 +114,8 @@ serve(async (req) => {
       const data = JSON.parse(event.data);
       
       if (data.type === 'audio' && assemblySocket && assemblySocket.readyState === WebSocket.OPEN) {
-        // Forward audio data to AssemblyAI
-        assemblySocket.send(JSON.stringify({ audio_data: data.data }));
+        // Forward audio data to AssemblyAI v3 API
+        assemblySocket.send(JSON.stringify({ data: data.data }));
       } else if (data.type === 'terminate') {
         // Send terminate message to AssemblyAI
         if (assemblySocket && assemblySocket.readyState === WebSocket.OPEN) {
