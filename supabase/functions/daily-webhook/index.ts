@@ -106,18 +106,47 @@ serve(async (req) => {
 
       case 'recording.ready-to-download':
         console.log('Recording ready for session:', session.id);
-        updateData.status = 'recorded';
+        const recordingId = eventPayload.recordingId || eventPayload.recording_id || eventPayload.id;
         
-        // Extract download URL from multiple possible paths
-        const downloadUrl = eventPayload.downloadUrl || 
-                           eventPayload.download?.download_link || 
-                           eventPayload.download_link ||
-                           eventPayload.url;
-        
-        console.log('Download URL found:', downloadUrl);
-        updateData.daily_download_url = downloadUrl;
-        updateData.raw_video_url = downloadUrl; // Use the same URL for raw video
-        updateData.duration_seconds = eventPayload.duration || eventPayload.duration_seconds;
+        if (recordingId) {
+          updateData.daily_recording_id = recordingId;
+          
+          // Fetch the actual access link from Daily.co API
+          const dailyApiKey = Deno.env.get('DAILY_API_KEY');
+          console.log('Fetching access link for recording:', recordingId);
+          
+          try {
+            const accessLinkResponse = await fetch(
+              `https://api.daily.co/v1/recordings/${recordingId}/access-link`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${dailyApiKey}`,
+                  'Content-Type': 'application/json',
+                },
+              }
+            );
+
+            if (accessLinkResponse.ok) {
+              const accessLinkData = await accessLinkResponse.json();
+              console.log('Access link fetched successfully:', JSON.stringify(accessLinkData, null, 2));
+              
+              updateData.status = 'recorded';
+              updateData.daily_download_url = accessLinkData.download_link;
+              updateData.raw_video_url = accessLinkData.download_link;
+              updateData.duration_seconds = eventPayload.duration || eventPayload.duration_seconds;
+            } else {
+              const errorText = await accessLinkResponse.text();
+              console.error('Failed to fetch access link:', errorText);
+              updateData.status = 'processing';
+            }
+          } catch (fetchError) {
+            console.error('Error fetching access link:', fetchError);
+            updateData.status = 'processing';
+          }
+        } else {
+          console.error('No recording ID found in webhook payload');
+          updateData.status = 'processing';
+        }
         
         // Trigger n8n workflow
         const n8nWebhookUrl = Deno.env.get('N8N_WEBHOOK_URL');
