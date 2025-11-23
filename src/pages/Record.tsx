@@ -34,18 +34,18 @@ const Record = () => {
         return;
       }
 
+      console.log('Creating Daily frame...');
       const frame = Daily.createFrame(container, {
         showLeaveButton: true,
         showFullscreenButton: true,
       });
-      
-      frame.join({ url: roomUrl });
-      setCallFrame(frame);
 
+      // Set up all event listeners BEFORE joining
       frame.on('left-meeting', handleLeaveCall);
       
       // Auto-start recording when joined
       frame.on('joined-meeting', async () => {
+        console.log('Joined meeting, starting recording...');
         try {
           await frame.startRecording();
           setIsRecording(true);
@@ -70,6 +70,21 @@ const Record = () => {
       frame.on('recording-stopped', () => {
         setIsRecording(false);
       });
+
+      // Wait for frame to be loaded before joining
+      frame.on('loaded', () => {
+        console.log('Frame loaded, joining room...');
+        frame.join({ url: roomUrl }).catch((error) => {
+          console.error('Failed to join room:', error);
+          toast({
+            title: "Error",
+            description: "Failed to join the video room",
+            variant: "destructive",
+          });
+        });
+      });
+
+      setCallFrame(frame);
     }
 
     return () => {
