@@ -159,22 +159,8 @@ const Record = () => {
 
   // Show recording interface
   if (currentStep === 'recording' && (state.isRecording || isUploading)) {
-    const showWebcamControls = recordingConfig?.mode === 'screen-webcam' && !isUploading;
-
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-background via-background to-primary/5">
-        {showWebcamControls && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="fixed top-20 right-6 z-10"
-          >
-            <WebcamPositionControl
-              currentPosition={recordingConfig.webcam?.position || 'bottom-right'}
-              onPositionChange={updateWebcamPosition}
-            />
-          </motion.div>
-        )}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}

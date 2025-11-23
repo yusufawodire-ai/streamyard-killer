@@ -88,6 +88,13 @@ export const useScreenRecorder = () => {
         const drawFrame = () => {
           if (!canvasRef.current || !configRef.current) return;
 
+          // Safety check: ensure videos have dimensions
+          if (screenVideo.videoWidth === 0 || webcamVideo.videoWidth === 0) {
+            console.log('Waiting for video dimensions...');
+            animationFrameRef.current = requestAnimationFrame(drawFrame);
+            return;
+          }
+
           // Draw screen (full canvas)
           ctx.drawImage(screenVideo, 0, 0, canvas.width, canvas.height);
 
@@ -147,12 +154,26 @@ export const useScreenRecorder = () => {
           animationFrameRef.current = requestAnimationFrame(drawFrame);
         };
 
-        // Wait for videos to be ready
+        // Wait for videos to have actual data ready
         await Promise.all([
-          new Promise(resolve => screenVideo.onloadedmetadata = resolve),
-          new Promise(resolve => webcamVideo.onloadedmetadata = resolve),
+          new Promise(resolve => {
+            if (screenVideo.readyState >= 2) resolve(true);
+            else screenVideo.onloadeddata = () => resolve(true);
+          }),
+          new Promise(resolve => {
+            if (webcamVideo.readyState >= 2) resolve(true);
+            else webcamVideo.onloadeddata = () => resolve(true);
+          }),
         ]);
 
+        // Ensure videos are playing
+        await screenVideo.play();
+        await webcamVideo.play();
+
+        console.log('Videos ready. Screen:', screenVideo.videoWidth, 'x', screenVideo.videoHeight);
+        console.log('Webcam ready:', webcamVideo.videoWidth, 'x', webcamVideo.videoHeight);
+
+        // Start drawing
         drawFrame();
 
         // Get composed stream from canvas
