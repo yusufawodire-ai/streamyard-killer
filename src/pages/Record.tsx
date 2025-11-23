@@ -27,48 +27,60 @@ const Record = () => {
 
   useEffect(() => {
     if (roomUrl && !callFrame && dailyFrameRef.current) {
-      // Ensure DOM element is ready before creating frame
+      // Use requestAnimationFrame to ensure DOM is fully ready
       const container = dailyFrameRef.current;
-      if (!container) {
-        console.error('Daily frame container not found');
-        return;
-      }
-
-      const frame = Daily.createFrame(container, {
-        showLeaveButton: true,
-        showFullscreenButton: true,
-      });
       
-      frame.join({ url: roomUrl });
-      setCallFrame(frame);
+      requestAnimationFrame(() => {
+        if (!container) {
+          console.error('Daily frame container not found');
+          return;
+        }
 
-      frame.on('left-meeting', handleLeaveCall);
-      
-      // Auto-start recording when joined
-      frame.on('joined-meeting', async () => {
         try {
-          await frame.startRecording();
-          setIsRecording(true);
-          toast({
-            title: "Recording Started",
-            description: "Your session is now being recorded",
+          const frame = Daily.createFrame(container, {
+            showLeaveButton: true,
+            showFullscreenButton: true,
+          });
+          
+          frame.join({ url: roomUrl });
+          setCallFrame(frame);
+
+          frame.on('left-meeting', handleLeaveCall);
+          
+          // Auto-start recording when joined
+          frame.on('joined-meeting', async () => {
+            try {
+              await frame.startRecording();
+              setIsRecording(true);
+              toast({
+                title: "Recording Started",
+                description: "Your session is now being recorded",
+              });
+            } catch (error) {
+              console.error('Failed to start recording:', error);
+              toast({
+                title: "Recording Failed",
+                description: error instanceof Error ? error.message : "Failed to start recording",
+                variant: "destructive",
+              });
+            }
+          });
+
+          frame.on('recording-started', () => {
+            setIsRecording(true);
+          });
+
+          frame.on('recording-stopped', () => {
+            setIsRecording(false);
           });
         } catch (error) {
-          console.error('Failed to start recording:', error);
+          console.error('Error creating Daily frame:', error);
           toast({
-            title: "Recording Failed",
-            description: error instanceof Error ? error.message : "Failed to start recording",
+            title: "Connection Error",
+            description: "Failed to initialize video call. Please try again.",
             variant: "destructive",
           });
         }
-      });
-
-      frame.on('recording-started', () => {
-        setIsRecording(true);
-      });
-
-      frame.on('recording-stopped', () => {
-        setIsRecording(false);
       });
     }
 
