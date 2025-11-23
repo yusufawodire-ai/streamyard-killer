@@ -11,8 +11,6 @@ import Daily from "@daily-co/daily-js";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { CustomRecordingControls } from "@/components/CustomRecordingControls";
-import { RealtimeTranscript } from "@/components/RealtimeTranscript";
-import { AudioCapture } from "@/utils/AudioCapture";
 
 const Record = () => {
   const [brandId, setBrandId] = useState("");
@@ -23,14 +21,9 @@ const Record = () => {
   const [callFrame, setCallFrame] = useState<any>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const [transcriptText, setTranscriptText] = useState('');
-  const [partialText, setPartialText] = useState('');
   const { toast } = useToast();
   const navigate = useNavigate();
   const dailyFrameRef = useRef<HTMLDivElement>(null);
-  const audioCaptureRef = useRef<AudioCapture | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     if (roomUrl && !callFrame && dailyFrameRef.current) {
@@ -39,7 +32,6 @@ const Record = () => {
         
         if (!container) {
           console.log('Container not ready, retrying...');
-          // Retry after a short delay
           setTimeout(() => {
             requestAnimationFrame(initializeFrame);
           }, 100);
@@ -64,12 +56,9 @@ const Record = () => {
               await frame.startRecording();
               setIsRecording(true);
               
-              // Start real-time transcription
-              await startRealtimeTranscription();
-              
               toast({
                 title: "Recording Started",
-                description: "Your session is now being recorded with live transcription",
+                description: "Your session is now being recorded. Transcription will be generated after recording ends.",
               });
             } catch (error) {
               console.error('Failed to start recording:', error);
@@ -98,7 +87,6 @@ const Record = () => {
         }
       };
 
-      // Start initialization after DOM is ready
       requestAnimationFrame(initializeFrame);
     }
 
@@ -170,7 +158,7 @@ const Record = () => {
         await callFrame.stopRecording();
         toast({
           title: "Recording Stopped",
-          description: "Your recording has been saved",
+          description: "Your recording will be processed and transcribed automatically",
         });
       } catch (error) {
         console.error('Failed to stop recording:', error);
@@ -183,115 +171,7 @@ const Record = () => {
     }
   };
 
-  const startAudioCapture = async (ws: WebSocket) => {
-    console.log('Starting audio capture');
-    const capture = new AudioCapture();
-    await capture.start((audioBase64) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'audio', data: audioBase64 }));
-      }
-    });
-    audioCaptureRef.current = capture;
-  };
-
-  const startRealtimeTranscription = async () => {
-    try {
-      // Connect to transcription WebSocket
-      const ws = new WebSocket(
-        'wss://plklxboeramqlwgmhkpc.supabase.co/functions/v1/realtime-transcription'
-      );
-
-      ws.onopen = () => {
-        console.log('Transcription WebSocket connected');
-        setIsTranscribing(true);
-        // Audio capture will start when we receive 'ready' signal
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          
-          // Wait for ready signal before starting audio
-          if (data.type === 'ready' && !audioCaptureRef.current) {
-            console.log('AssemblyAI ready, starting audio capture');
-            startAudioCapture(ws);
-          }
-          else if (data.type === 'transcript') {
-            if (data.is_final) {
-              setTranscriptText(prev => prev + (prev ? ' ' : '') + data.text);
-              setPartialText('');
-            } else {
-              setPartialText(data.text);
-            }
-          }
-        } catch (error) {
-          console.error('Error parsing transcript:', error);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('Transcription WebSocket error:', error);
-        toast({
-          title: "Transcription Error",
-          description: "Failed to connect to transcription service. Recording will continue.",
-          variant: "destructive",
-        });
-      };
-
-      ws.onclose = (event) => {
-        console.log('Transcription WebSocket closed:', event.code, event.reason);
-        setIsTranscribing(false);
-        
-        // If it closed unexpectedly, notify user
-        if (event.code !== 1000 && event.code !== 1005) {
-          toast({
-            title: "Transcription Ended",
-            description: "Live transcription stopped. Recording continues.",
-          });
-        }
-      };
-
-      wsRef.current = ws;
-    } catch (error) {
-      console.error('Error starting transcription:', error);
-      toast({
-        title: "Transcription Error",
-        description: "Failed to start real-time transcription",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleLeaveCall = async () => {
-    // Stop transcription
-    if (audioCaptureRef.current) {
-      audioCaptureRef.current.stop();
-      audioCaptureRef.current = null;
-    }
-    
-    if (wsRef.current) {
-      wsRef.current.send(JSON.stringify({ type: 'terminate' }));
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-
-    // Save transcript to database if we have text
-    if (transcriptText.trim() && sessionId) {
-      try {
-        await supabase.from('transcripts').insert({
-          session_id: sessionId,
-          full_text: transcriptText,
-          status: 'completed',
-          provider: 'assemblyai',
-          language: 'en',
-          completed_at: new Date().toISOString()
-        });
-      } catch (error) {
-        console.error('Error saving transcript:', error);
-      }
-    }
-
-    // Clean up Daily call
     if (callFrame) {
       callFrame.destroy();
       setCallFrame(null);
@@ -299,22 +179,15 @@ const Record = () => {
     
     toast({
       title: "Recording Ended",
-      description: "Your recording is being processed.",
+      description: "Your recording is being processed. Transcription will be available soon.",
     });
     
     setRoomUrl(null);
     setIsRecording(false);
-    setIsTranscribing(false);
     
     if (sessionId) {
       navigate(`/session/${sessionId}`);
     }
-  };
-
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (roomUrl) {
@@ -355,12 +228,6 @@ const Record = () => {
               style={{ width: '100%', minHeight: '600px' }}
             />
           </GlassCard>
-
-          <RealtimeTranscript 
-            isActive={isTranscribing}
-            transcript={transcriptText}
-            partialText={partialText}
-          />
         </motion.div>
       </div>
     );
