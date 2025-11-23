@@ -33,23 +33,25 @@ const Record = () => {
         return;
       }
 
+      let frameInstance: any = null;
+      
       // Delay frame creation to ensure React DOM is fully committed
       const timeoutId = setTimeout(() => {
         console.log('Creating Daily frame...');
         
         try {
-          const frame = Daily.createFrame(container, {
+          frameInstance = Daily.createFrame(container, {
             showLeaveButton: true,
             showFullscreenButton: true,
           });
 
           // Set up all event listeners
-          frame.on('left-meeting', handleLeaveCall);
+          frameInstance.on('left-meeting', handleLeaveCall);
           
-          frame.on('joined-meeting', async () => {
+          frameInstance.on('joined-meeting', async () => {
             console.log('Joined meeting, starting recording...');
             try {
-              await frame.startRecording();
+              await frameInstance.startRecording();
               setIsRecording(true);
               toast({
                 title: "Recording Started",
@@ -65,17 +67,17 @@ const Record = () => {
             }
           });
 
-          frame.on('recording-started', () => {
+          frameInstance.on('recording-started', () => {
             setIsRecording(true);
           });
 
-          frame.on('recording-stopped', () => {
+          frameInstance.on('recording-stopped', () => {
             setIsRecording(false);
           });
 
-          frame.on('loaded', () => {
+          frameInstance.on('loaded', () => {
             console.log('Frame loaded, joining room...');
-            frame.join({ url: roomUrl }).catch((error) => {
+            frameInstance.join({ url: roomUrl }).catch((error) => {
               console.error('Failed to join room:', error);
               toast({
                 title: "Error",
@@ -85,7 +87,7 @@ const Record = () => {
             });
           });
 
-          setCallFrame(frame);
+          setCallFrame(frameInstance);
         } catch (error) {
           console.error('Error creating Daily frame:', error);
           toast({
@@ -98,19 +100,12 @@ const Record = () => {
 
       return () => {
         clearTimeout(timeoutId);
+        if (frameInstance) {
+          frameInstance.destroy();
+        }
       };
     }
   }, [roomUrl]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (callFrame) {
-        callFrame.destroy();
-        setCallFrame(null);
-      }
-    };
-  }, [callFrame]);
 
   // Recording duration timer
   useEffect(() => {
