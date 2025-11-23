@@ -5,16 +5,20 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Download, Clock, Calendar, FileText, Share2 } from "lucide-react";
+import { ArrowLeft, Download, Clock, Calendar, FileText, Share2, RefreshCw, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShareModal } from "@/components/ShareModal";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const SessionDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const { toast } = useToast();
 
   const { data: session, isLoading, refetch } = useQuery({
     queryKey: ['session', id],
@@ -28,19 +32,74 @@ const SessionDetail = () => {
       if (error) throw error;
       return data;
     },
+    refetchInterval: (query) => {
+      // Auto-refetch every 10 seconds if recording or processing
+      const status = query.state.data?.status;
+      if (status === 'recording' || status === 'processing') {
+        return 10000;
+      }
+      return false;
+    },
   });
+
+  // Sync recording manually
+  const handleSyncRecording = async () => {
+    if (!id) return;
+    
+    setIsSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-recording', {
+        body: { session_id: id },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Sync Complete",
+        description: data.message || "Recording status updated",
+      });
+
+      refetch();
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast({
+        title: "Sync Failed",
+        description: error instanceof Error ? error.message : "Failed to sync recording",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
+      case 'recorded':
         return 'bg-success/20 text-success border-success/30';
       case 'recording':
       case 'processing':
         return 'bg-warning/20 text-warning border-warning/30';
       case 'error':
+      case 'failed':
         return 'bg-destructive/20 text-destructive border-destructive/30';
       default:
         return 'bg-muted/20 text-muted-foreground border-muted/30';
+    }
+  };
+
+  const getStatusMessage = (status: string) => {
+    switch (status) {
+      case 'recording':
+        return 'Recording in progress...';
+      case 'processing':
+        return 'Processing recording...';
+      case 'recorded':
+        return 'Recording ready';
+      case 'draft':
+        return 'Waiting for recording to start';
+      default:
+        return status;
     }
   };
 
@@ -101,8 +160,18 @@ const SessionDetail = () => {
             <p className="text-muted-foreground mt-1">Brand: {session.brand_id.toUpperCase()}</p>
           </div>
           <Badge className={getStatusColor(session.status)}>
-            {session.status}
+            {getStatusMessage(session.status)}
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSyncRecording}
+            disabled={isSyncing}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            Sync
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -113,6 +182,17 @@ const SessionDetail = () => {
             Share
           </Button>
         </div>
+
+        {(session.status === 'recording' || session.status === 'processing') && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {session.status === 'recording' 
+                ? 'Recording is in progress. The video will appear here once the recording is complete.'
+                : 'Your recording is being processed. This usually takes a few minutes.'}
+            </AlertDescription>
+          </Alert>
+        )}
 
         <VideoPlayer
           videoUrl={videoUrl}

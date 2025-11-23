@@ -54,6 +54,11 @@ serve(async (req) => {
         properties: {
           enable_recording: 'cloud',
           enable_screenshare: true,
+          enable_chat: false,
+          enable_emoji_reactions: false,
+          enable_hand_raising: false,
+          start_video_off: false,
+          start_audio_off: false,
           exp: Math.floor(Date.now() / 1000) + (4 * 60 * 60), // 4 hours
         },
       }),
