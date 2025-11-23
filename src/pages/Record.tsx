@@ -27,72 +27,90 @@ const Record = () => {
 
   useEffect(() => {
     if (roomUrl && !callFrame && dailyFrameRef.current) {
-      // Ensure DOM element is ready before creating frame
       const container = dailyFrameRef.current;
       if (!container) {
         console.error('Daily frame container not found');
         return;
       }
 
-      console.log('Creating Daily frame...');
-      const frame = Daily.createFrame(container, {
-        showLeaveButton: true,
-        showFullscreenButton: true,
-      });
-
-      // Set up all event listeners BEFORE joining
-      frame.on('left-meeting', handleLeaveCall);
-      
-      // Auto-start recording when joined
-      frame.on('joined-meeting', async () => {
-        console.log('Joined meeting, starting recording...');
+      // Delay frame creation to ensure React DOM is fully committed
+      const timeoutId = setTimeout(() => {
+        console.log('Creating Daily frame...');
+        
         try {
-          await frame.startRecording();
-          setIsRecording(true);
-          toast({
-            title: "Recording Started",
-            description: "Your session is now being recorded",
+          const frame = Daily.createFrame(container, {
+            showLeaveButton: true,
+            showFullscreenButton: true,
           });
+
+          // Set up all event listeners
+          frame.on('left-meeting', handleLeaveCall);
+          
+          frame.on('joined-meeting', async () => {
+            console.log('Joined meeting, starting recording...');
+            try {
+              await frame.startRecording();
+              setIsRecording(true);
+              toast({
+                title: "Recording Started",
+                description: "Your session is now being recorded",
+              });
+            } catch (error) {
+              console.error('Failed to start recording:', error);
+              toast({
+                title: "Recording Failed",
+                description: error instanceof Error ? error.message : "Failed to start recording",
+                variant: "destructive",
+              });
+            }
+          });
+
+          frame.on('recording-started', () => {
+            setIsRecording(true);
+          });
+
+          frame.on('recording-stopped', () => {
+            setIsRecording(false);
+          });
+
+          frame.on('loaded', () => {
+            console.log('Frame loaded, joining room...');
+            frame.join({ url: roomUrl }).catch((error) => {
+              console.error('Failed to join room:', error);
+              toast({
+                title: "Error",
+                description: "Failed to join the video room",
+                variant: "destructive",
+              });
+            });
+          });
+
+          setCallFrame(frame);
         } catch (error) {
-          console.error('Failed to start recording:', error);
+          console.error('Error creating Daily frame:', error);
           toast({
-            title: "Recording Failed",
-            description: error instanceof Error ? error.message : "Failed to start recording",
+            title: "Error",
+            description: "Failed to initialize video call",
             variant: "destructive",
           });
         }
-      });
+      }, 100); // Small delay to ensure DOM is ready
 
-      frame.on('recording-started', () => {
-        setIsRecording(true);
-      });
-
-      frame.on('recording-stopped', () => {
-        setIsRecording(false);
-      });
-
-      // Wait for frame to be loaded before joining
-      frame.on('loaded', () => {
-        console.log('Frame loaded, joining room...');
-        frame.join({ url: roomUrl }).catch((error) => {
-          console.error('Failed to join room:', error);
-          toast({
-            title: "Error",
-            description: "Failed to join the video room",
-            variant: "destructive",
-          });
-        });
-      });
-
-      setCallFrame(frame);
+      return () => {
+        clearTimeout(timeoutId);
+      };
     }
+  }, [roomUrl]);
 
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
       if (callFrame) {
         callFrame.destroy();
+        setCallFrame(null);
       }
     };
-  }, [roomUrl]);
+  }, [callFrame]);
 
   // Recording duration timer
   useEffect(() => {
