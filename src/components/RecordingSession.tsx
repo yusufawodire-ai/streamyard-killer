@@ -1,11 +1,12 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
-import { Video, Clock, FileText, Eye } from "lucide-react";
+import { Video, Clock, FileText, Eye, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 interface RecordingSessionProps {
   selectedBrand: string | null;
@@ -20,7 +21,8 @@ const formatDuration = (seconds: number | null): string => {
 
 const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
   const navigate = useNavigate();
-  const { data: sessions, isLoading } = useQuery({
+  const { toast } = useToast();
+  const { data: sessions, isLoading, refetch } = useQuery({
     queryKey: ['sessions', selectedBrand],
     queryFn: async () => {
       let query = supabase
@@ -37,6 +39,39 @@ const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
       return data;
     },
   });
+
+  const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this recording? This action cannot be undone.'
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      const { error } = await supabase
+        .from('sessions')
+        .delete()
+        .eq('id', sessionId);
+      
+      if (error) throw error;
+      
+      refetch();
+      
+      toast({
+        title: "Session Deleted",
+        description: "Recording session has been deleted",
+      });
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast({
+        title: "Delete Failed",
+        description: error instanceof Error ? error.message : "Failed to delete session",
+        variant: "destructive",
+      });
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -121,6 +156,14 @@ const RecordingSession = ({ selectedBrand }: RecordingSessionProps) => {
                 >
                   <Eye className="h-4 w-4 mr-1" />
                   View
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="destructive"
+                  onClick={(e) => handleDeleteSession(session.id, e)}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete
                 </Button>
               </div>
             </div>
