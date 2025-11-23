@@ -42,6 +42,32 @@ const SessionDetail = () => {
     },
   });
 
+  // Real-time subscription for instant updates when webhook fires
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel(`session-${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'sessions',
+          filter: `id=eq.${id}`,
+        },
+        (payload) => {
+          console.log('Session updated via webhook:', payload);
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, refetch]);
+
   // Sync recording manually
   const handleSyncRecording = async () => {
     if (!id) return;
