@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Record from "./pages/Record";
 import SessionDetail from "./pages/SessionDetail";
 import Sessions from "./pages/Sessions";
+import ShareVideo from "./pages/ShareVideo";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
                   <Route path="/record" element={<Record />} />
                   <Route path="/session/:id" element={<SessionDetail />} />
                   <Route path="/sessions" element={<Sessions />} />
+                  <Route path="/share/:shareToken" element={<ShareVideo />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>

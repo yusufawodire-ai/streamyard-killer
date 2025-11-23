@@ -50,11 +50,14 @@ export const VideoPlayer = ({ videoUrl, dailyUrl, title }: VideoPlayerProps) => 
     <GlassCard className="p-0 overflow-hidden">
       <video
         controls
+        controlsList="nodownload"
         className="w-full aspect-video bg-black"
         onError={() => setError(true)}
         title={title}
+        preload="metadata"
       >
         <source src={videoUrl} type="video/mp4" />
+        <source src={videoUrl} type="video/webm" />
         Your browser does not support the video tag.
       </video>
     </GlassCard>
