@@ -34,16 +34,20 @@ const Record = () => {
 
   useEffect(() => {
     if (roomUrl && !callFrame && dailyFrameRef.current) {
-      // Use requestAnimationFrame to ensure DOM is fully ready
-      const container = dailyFrameRef.current;
-      
-      requestAnimationFrame(() => {
+      const initializeFrame = () => {
+        const container = dailyFrameRef.current;
+        
         if (!container) {
-          console.error('Daily frame container not found');
+          console.log('Container not ready, retrying...');
+          // Retry after a short delay
+          setTimeout(() => {
+            requestAnimationFrame(initializeFrame);
+          }, 100);
           return;
         }
 
         try {
+          console.log('Creating Daily frame...');
           const frame = Daily.createFrame(container, {
             showLeaveButton: true,
             showFullscreenButton: true,
@@ -92,7 +96,10 @@ const Record = () => {
             variant: "destructive",
           });
         }
-      });
+      };
+
+      // Start initialization after DOM is ready
+      requestAnimationFrame(initializeFrame);
     }
 
     return () => {
@@ -226,14 +233,22 @@ const Record = () => {
         console.error('Transcription WebSocket error:', error);
         toast({
           title: "Transcription Error",
-          description: "Failed to connect to transcription service",
+          description: "Failed to connect to transcription service. Recording will continue.",
           variant: "destructive",
         });
       };
 
-      ws.onclose = () => {
-        console.log('Transcription WebSocket closed');
+      ws.onclose = (event) => {
+        console.log('Transcription WebSocket closed:', event.code, event.reason);
         setIsTranscribing(false);
+        
+        // If it closed unexpectedly, notify user
+        if (event.code !== 1000 && event.code !== 1005) {
+          toast({
+            title: "Transcription Ended",
+            description: "Live transcription stopped. Recording continues.",
+          });
+        }
       };
 
       wsRef.current = ws;

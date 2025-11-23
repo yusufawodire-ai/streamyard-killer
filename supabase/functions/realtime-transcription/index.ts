@@ -44,25 +44,49 @@ serve(async (req) => {
     assemblySocket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log('AssemblyAI message:', data.message_type);
+        console.log('AssemblyAI message:', data);
         
+        // Handle all message types
         if (data.message_type === 'SessionBegins') {
           console.log('AssemblyAI session ready');
-          browserSocket.send(JSON.stringify({ type: 'ready' }));
-        } else if (data.message_type === 'SessionInformation') {
+          // Check browser socket state before sending
+          if (browserSocket.readyState === WebSocket.OPEN) {
+            browserSocket.send(JSON.stringify({ type: 'ready' }));
+          }
+        } 
+        else if (data.message_type === 'SessionInformation') {
           console.log('AssemblyAI session info:', data);
-        } else if (data.message_type === 'PartialTranscript') {
-          browserSocket.send(JSON.stringify({
-            type: 'transcript',
-            text: data.text,
-            is_final: false
-          }));
-        } else if (data.message_type === 'FinalTranscript') {
-          browserSocket.send(JSON.stringify({
-            type: 'transcript',
-            text: data.text,
-            is_final: true
-          }));
+        }
+        else if (data.message_type === 'PartialTranscript' && data.text) {
+          if (browserSocket.readyState === WebSocket.OPEN) {
+            browserSocket.send(JSON.stringify({
+              type: 'transcript',
+              text: data.text,
+              is_final: false
+            }));
+          }
+        } 
+        else if (data.message_type === 'FinalTranscript' && data.text) {
+          if (browserSocket.readyState === WebSocket.OPEN) {
+            browserSocket.send(JSON.stringify({
+              type: 'transcript',
+              text: data.text,
+              is_final: true
+            }));
+          }
+        }
+        else if (data.error) {
+          console.error('AssemblyAI error:', data.error);
+          if (browserSocket.readyState === WebSocket.OPEN) {
+            browserSocket.send(JSON.stringify({ 
+              type: 'error', 
+              message: data.error 
+            }));
+          }
+        }
+        else {
+          // Log unknown message types for debugging
+          console.log('Unknown AssemblyAI message type:', data.message_type);
         }
       } catch (error) {
         console.error('Error parsing AssemblyAI message:', error);
