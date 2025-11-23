@@ -35,7 +35,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         url: webhookUrl,
-        event_types: [
+        eventTypes: [
           'recording.started',
           'recording.ready-to-download',
           'recording.error'
