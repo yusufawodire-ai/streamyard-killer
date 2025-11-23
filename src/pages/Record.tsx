@@ -26,45 +26,26 @@ const Record = () => {
   const dailyFrameRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!roomUrl || callFrame) return;
+    if (roomUrl && !callFrame && dailyFrameRef.current) {
+      // Ensure DOM element is ready before creating frame
+      const container = dailyFrameRef.current;
+      if (!container) {
+        console.error('Daily frame container not found');
+        return;
+      }
 
-    const container = dailyFrameRef.current;
-    if (!container) {
-      console.error('Daily frame container not found');
-      return;
-    }
-
-    console.log('Creating Daily frame...');
-    
-    let frame: any = null;
-    
-    try {
-      frame = Daily.createFrame(container, {
+      const frame = Daily.createFrame(container, {
         showLeaveButton: true,
         showFullscreenButton: true,
       });
-
-      console.log('Frame created, setting up event listeners...');
-
-      frame.on('left-meeting', () => {
-        console.log('Left meeting event');
-        if (frame) {
-          frame.destroy();
-        }
-        setCallFrame(null);
-        setRoomUrl(null);
-        setIsRecording(false);
-        toast({
-          title: "Recording Ended",
-          description: "Your recording is being processed.",
-        });
-        if (sessionId) {
-          navigate(`/session/${sessionId}`);
-        }
-      });
       
+      frame.join({ url: roomUrl });
+      setCallFrame(frame);
+
+      frame.on('left-meeting', handleLeaveCall);
+      
+      // Auto-start recording when joined
       frame.on('joined-meeting', async () => {
-        console.log('Joined meeting, starting recording...');
         try {
           await frame.startRecording();
           setIsRecording(true);
@@ -83,52 +64,20 @@ const Record = () => {
       });
 
       frame.on('recording-started', () => {
-        console.log('Recording started event');
         setIsRecording(true);
       });
 
       frame.on('recording-stopped', () => {
-        console.log('Recording stopped event');
         setIsRecording(false);
       });
-
-      frame.on('loaded', () => {
-        console.log('Frame loaded, joining room...');
-        frame.join({ url: roomUrl }).catch((error) => {
-          console.error('Failed to join room:', error);
-          toast({
-            title: "Error",
-            description: "Failed to join the video room",
-            variant: "destructive",
-          });
-        });
-      });
-
-      frame.on('error', (error: any) => {
-        console.error('Daily frame error:', error);
-      });
-
-      setCallFrame(frame);
-
-      return () => {
-        console.log('Cleaning up Daily frame');
-        if (frame) {
-          try {
-            frame.destroy();
-          } catch (e) {
-            console.error('Error destroying frame:', e);
-          }
-        }
-      };
-    } catch (error) {
-      console.error('Error creating Daily frame:', error);
-      toast({
-        title: "Error",
-        description: "Failed to initialize video call",
-        variant: "destructive",
-      });
     }
-  }, [roomUrl, callFrame, sessionId, toast, navigate]);
+
+    return () => {
+      if (callFrame) {
+        callFrame.destroy();
+      }
+    };
+  }, [roomUrl]);
 
   // Recording duration timer
   useEffect(() => {
@@ -205,21 +154,18 @@ const Record = () => {
   };
 
   const handleLeaveCall = () => {
-    console.log('Handle leave call button clicked');
     if (callFrame) {
-      try {
-        callFrame.leave();
-      } catch (error) {
-        console.error('Error leaving call:', error);
-        // If leave fails, force cleanup
-        callFrame.destroy();
-        setCallFrame(null);
-        setRoomUrl(null);
-        setIsRecording(false);
-        if (sessionId) {
-          navigate(`/session/${sessionId}`);
-        }
-      }
+      callFrame.destroy();
+      setCallFrame(null);
+    }
+    toast({
+      title: "Recording Ended",
+      description: "Your recording is being processed.",
+    });
+    setRoomUrl(null);
+    setIsRecording(false);
+    if (sessionId) {
+      navigate(`/session/${sessionId}`);
     }
   };
 
