@@ -35,11 +35,15 @@ export const useScreenRecorder = () => {
     try {
       configRef.current = config || null;
 
+      // Determine capture dimensions (full screen for cropping or specified resolution)
+      const captureWidth = config?.crop ? 1920 : (config?.resolution.width || 1920);
+      const captureHeight = config?.crop ? 1080 : (config?.resolution.height || 1080);
+
       // Get screen stream
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: { 
-          width: { ideal: config?.resolution.width || 1920 },
-          height: { ideal: config?.resolution.height || 1080 },
+          width: { ideal: captureWidth },
+          height: { ideal: captureHeight },
           frameRate: { ideal: config?.frameRate || 30 }
         },
         audio: false, // We'll get audio from microphone separately
@@ -69,8 +73,13 @@ export const useScreenRecorder = () => {
 
         // Create canvas for compositing
         const canvas = document.createElement('canvas');
-        canvas.width = config.resolution.width;
-        canvas.height = config.resolution.height;
+        // Set canvas to final output dimensions (after crop)
+        canvas.width = config.crop 
+          ? Math.round((config.crop.width / 100) * config.resolution.width)
+          : config.resolution.width;
+        canvas.height = config.crop
+          ? Math.round((config.crop.height / 100) * config.resolution.height)
+          : config.resolution.height;
         canvasRef.current = canvas;
         
         // Style as small corner preview (won't be captured if screen share excludes it)
@@ -124,8 +133,26 @@ export const useScreenRecorder = () => {
           }
           lastFrameTime = now;
 
-          // Draw screen (full canvas)
-          ctx.drawImage(screenVideo, 0, 0, canvas.width, canvas.height);
+          // Apply cropping if specified
+          if (config.crop) {
+            // Calculate source crop coordinates
+            const sourceWidth = screenVideo.videoWidth;
+            const sourceHeight = screenVideo.videoHeight;
+            const cropX = Math.round((config.crop.x / 100) * sourceWidth);
+            const cropY = Math.round((config.crop.y / 100) * sourceHeight);
+            const cropWidth = Math.round((config.crop.width / 100) * sourceWidth);
+            const cropHeight = Math.round((config.crop.height / 100) * sourceHeight);
+
+            // Draw cropped screen
+            ctx.drawImage(
+              screenVideo,
+              cropX, cropY, cropWidth, cropHeight,  // Source crop area
+              0, 0, canvas.width, canvas.height      // Destination (full canvas)
+            );
+          } else {
+            // Draw screen (full canvas, no crop)
+            ctx.drawImage(screenVideo, 0, 0, canvas.width, canvas.height);
+          }
 
           // Calculate webcam dimensions
           const webcamSize = config.webcam?.size || 20;
