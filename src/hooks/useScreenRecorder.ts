@@ -396,6 +396,13 @@ export const useScreenRecorder = () => {
     }
   }, []);
 
+  const updateWebcamSize = useCallback((size: number) => {
+    if (configRef.current && configRef.current.webcam) {
+      configRef.current.webcam.size = size;
+      console.log('Webcam size updated to:', size);
+    }
+  }, []);
+
   const toggleWebcamVisibility = useCallback(() => {
     webcamVisibleRef.current = !webcamVisibleRef.current;
     console.log('Webcam visibility:', webcamVisibleRef.current);
@@ -414,6 +421,7 @@ export const useScreenRecorder = () => {
     resumeRecording,
     uploadRecording,
     updateWebcamPosition,
+    updateWebcamSize,
     toggleWebcamVisibility,
     isWebcamVisible,
   };

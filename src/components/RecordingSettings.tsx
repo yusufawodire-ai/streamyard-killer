@@ -40,7 +40,7 @@ const DEFAULT_CONFIG: RecordingConfig = {
   audioBitrate: 128000,
   webcam: {
     position: 'bottom-right',
-    size: 20,
+    size: 15,
     shape: 'circle',
     borderWidth: 2,
     borderColor: '#3b82f6',
@@ -427,13 +427,17 @@ const RecordingSettings = ({ brandId, title, onBack, onStartRecording }: Recordi
                     <div>
                       <Label>Size: {config.webcam?.size}%</Label>
                       <Slider
-                        value={[config.webcam?.size || 20]}
+                        value={[config.webcam?.size || 15]}
                         onValueChange={([value]) => updateWebcamConfig({ size: value })}
-                        min={15}
-                        max={25}
-                        step={5}
+                        min={10}
+                        max={30}
+                        step={1}
                         className="mt-2"
                       />
+                      <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                        <span>10%</span>
+                        <span>30%</span>
+                      </div>
                     </div>
 
                     <div>

@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Video, Square, Play, Pause, Upload, Eye, EyeOff, MoveUpLeft, MoveUpRight, MoveDownLeft, MoveDownRight } from "lucide-react";
+import { Loader2, Video, Square, Play, Pause, Upload, Eye, EyeOff, MoveUpLeft, MoveUpRight, MoveDownLeft, MoveDownRight, Minimize2, Plus, Minus, GripVertical } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { GlassCard } from "@/components/ui/glass-card";
 import { motion } from "framer-motion";
@@ -26,9 +26,12 @@ const Record = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isWebcamVisibleState, setIsWebcamVisibleState] = useState(true);
+  const [isControlsExpanded, setIsControlsExpanded] = useState(true);
+  const [controlsPosition, setControlsPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { state, startRecording, stopRecording, pauseRecording, resumeRecording, uploadRecording, updateWebcamPosition, toggleWebcamVisibility, isWebcamVisible } = useScreenRecorder();
+  const { state, startRecording, stopRecording, pauseRecording, resumeRecording, uploadRecording, updateWebcamPosition, updateWebcamSize, toggleWebcamVisibility, isWebcamVisible } = useScreenRecorder();
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -53,6 +56,50 @@ const Record = () => {
       title: "Position Updated",
       description: `Webcam moved to ${position.replace('-', ' ')}`,
     });
+  };
+
+  const handleSizeChange = (delta: number) => {
+    const currentSize = recordingConfig?.webcam?.size || 15;
+    const newSize = Math.max(10, Math.min(30, currentSize + delta));
+    updateWebcamSize(newSize);
+    
+    setRecordingConfig(prev => ({
+      ...prev!,
+      webcam: { ...prev!.webcam!, size: newSize }
+    }));
+    
+    toast({
+      title: "Size Updated",
+      description: `Webcam size: ${newSize}%`,
+    });
+  };
+
+  const handleDragStart = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    const startX = e.clientX - controlsPosition.x;
+    const startY = e.clientY - controlsPosition.y;
+
+    const handleDragMove = (moveEvent: MouseEvent) => {
+      const newX = moveEvent.clientX - startX;
+      const newY = moveEvent.clientY - startY;
+      
+      const maxX = window.innerWidth - 340;
+      const maxY = window.innerHeight - 400;
+      
+      setControlsPosition({
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY))
+      });
+    };
+
+    const handleDragEnd = () => {
+      setIsDragging(false);
+      document.removeEventListener('mousemove', handleDragMove);
+      document.removeEventListener('mouseup', handleDragEnd);
+    };
+
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('mouseup', handleDragEnd);
   };
 
   const handleContinueToSettings = () => {
@@ -231,88 +278,189 @@ const Record = () => {
 
                 {/* Webcam Controls - Only show for screen-webcam mode */}
                 {recordingConfig?.mode === 'screen-webcam' && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="fixed top-6 left-1/2 -translate-x-1/2 z-[10001] pointer-events-auto space-y-2"
-                  >
-                    {/* Hide/Show Button */}
-                    <GlassCard className="p-3">
-                      <Button
-                        variant={isWebcamVisibleState ? "default" : "outline"}
-                        size="sm"
-                        onClick={handleToggleWebcam}
-                        className="w-full"
+                  <>
+                    {/* Collapsed Button */}
+                    {!isControlsExpanded && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        style={{
+                          position: 'fixed',
+                          top: controlsPosition.y || 20,
+                          left: controlsPosition.x || 20,
+                          zIndex: 10001,
+                        }}
+                        className="pointer-events-auto"
                       >
-                        {isWebcamVisibleState ? (
-                          <><Eye className="h-4 w-4 mr-2" />Hide Webcam</>
-                        ) : (
-                          <><EyeOff className="h-4 w-4 mr-2" />Show Webcam</>
-                        )}
-                      </Button>
-                    </GlassCard>
-
-                    {/* Position Controls - Only show when webcam is visible */}
-                    {isWebcamVisibleState && (
-                      <GlassCard className="p-3">
-                        <h4 className="text-xs font-semibold mb-2 text-center">Webcam Position</h4>
-                        <div className="grid grid-cols-2 gap-1">
+                        <GlassCard 
+                          className="p-3 cursor-move"
+                          onMouseDown={handleDragStart}
+                        >
                           <Button
+                            variant="default"
                             size="sm"
-                            variant={recordingConfig.webcam?.position === 'top-left' ? 'default' : 'outline'}
-                            onClick={() => handlePositionChange('top-left')}
-                            className="p-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsControlsExpanded(true);
+                            }}
                           >
-                            <MoveUpLeft className="h-3 w-3" />
+                            <Badge variant="destructive" className="animate-pulse mr-2">
+                              <div className="h-2 w-2 bg-white rounded-full" />
+                            </Badge>
+                            {formatDuration(state.duration)}
                           </Button>
-                          <Button
-                            size="sm"
-                            variant={recordingConfig.webcam?.position === 'top-right' ? 'default' : 'outline'}
-                            onClick={() => handlePositionChange('top-right')}
-                            className="p-2"
-                          >
-                            <MoveUpRight className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant={recordingConfig.webcam?.position === 'bottom-left' ? 'default' : 'outline'}
-                            onClick={() => handlePositionChange('bottom-left')}
-                            className="p-2"
-                          >
-                            <MoveDownLeft className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant={recordingConfig.webcam?.position === 'bottom-right' ? 'default' : 'outline'}
-                            onClick={() => handlePositionChange('bottom-right')}
-                            className="p-2"
-                          >
-                            <MoveDownRight className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </GlassCard>
+                        </GlassCard>
+                      </motion.div>
                     )}
 
-                    {/* Hide Preview Toggle */}
-                    <GlassCard className="p-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const canvas = document.querySelector('canvas');
-                          if (canvas) {
-                            canvas.style.display = canvas.style.display === 'none' ? 'block' : 'none';
-                          }
-                          toast({
-                            title: canvas?.style.display === 'none' ? "Preview Shown" : "Preview Hidden",
-                          });
+                    {/* Expanded Control Panel */}
+                    {isControlsExpanded && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        style={{
+                          position: 'fixed',
+                          top: controlsPosition.y || 20,
+                          left: controlsPosition.x || (window.innerWidth / 2 - 160),
+                          zIndex: 10001,
                         }}
-                        className="w-full"
+                        className="pointer-events-auto"
                       >
-                        Toggle Preview
-                      </Button>
-                    </GlassCard>
-                  </motion.div>
+                        <GlassCard className="w-[320px]">
+                          {/* Drag Handle Header */}
+                          <div 
+                            className="p-2 bg-muted/50 rounded-t-lg cursor-move flex items-center justify-between"
+                            onMouseDown={handleDragStart}
+                          >
+                            <div className="flex items-center gap-2">
+                              <GripVertical className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-xs font-semibold">Recording Controls</span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsControlsExpanded(false);
+                              }}
+                              className="h-6 w-6 p-0"
+                            >
+                              <Minimize2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+
+                          <div className="p-3 space-y-2">
+                            {/* Hide/Show Webcam */}
+                            <Button
+                              variant={isWebcamVisibleState ? "default" : "outline"}
+                              size="sm"
+                              onClick={handleToggleWebcam}
+                              className="w-full"
+                            >
+                              {isWebcamVisibleState ? (
+                                <><Eye className="h-4 w-4 mr-2" />Hide Webcam</>
+                              ) : (
+                                <><EyeOff className="h-4 w-4 mr-2" />Show Webcam</>
+                              )}
+                            </Button>
+
+                            {/* Webcam Size Control */}
+                            {isWebcamVisibleState && (
+                              <GlassCard className="p-3">
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <Label className="text-xs">Webcam Size</Label>
+                                    <span className="text-xs font-mono">
+                                      {recordingConfig.webcam?.size || 15}%
+                                    </span>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleSizeChange(-1)}
+                                      disabled={!recordingConfig.webcam || recordingConfig.webcam.size <= 10}
+                                      className="flex-1"
+                                    >
+                                      <Minus className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleSizeChange(1)}
+                                      disabled={!recordingConfig.webcam || recordingConfig.webcam.size >= 30}
+                                      className="flex-1"
+                                    >
+                                      <Plus className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </GlassCard>
+                            )}
+
+                            {/* Position Controls */}
+                            {isWebcamVisibleState && (
+                              <GlassCard className="p-3">
+                                <Label className="text-xs mb-2 block">Webcam Position</Label>
+                                <div className="grid grid-cols-2 gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant={recordingConfig.webcam?.position === 'top-left' ? 'default' : 'outline'}
+                                    onClick={() => handlePositionChange('top-left')}
+                                    className="p-2"
+                                  >
+                                    <MoveUpLeft className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant={recordingConfig.webcam?.position === 'top-right' ? 'default' : 'outline'}
+                                    onClick={() => handlePositionChange('top-right')}
+                                    className="p-2"
+                                  >
+                                    <MoveUpRight className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant={recordingConfig.webcam?.position === 'bottom-left' ? 'default' : 'outline'}
+                                    onClick={() => handlePositionChange('bottom-left')}
+                                    className="p-2"
+                                  >
+                                    <MoveDownLeft className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant={recordingConfig.webcam?.position === 'bottom-right' ? 'default' : 'outline'}
+                                    onClick={() => handlePositionChange('bottom-right')}
+                                    className="p-2"
+                                  >
+                                    <MoveDownRight className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </GlassCard>
+                            )}
+
+                            {/* Toggle Preview */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const canvas = document.querySelector('canvas');
+                                if (canvas) {
+                                  canvas.style.display = canvas.style.display === 'none' ? 'block' : 'none';
+                                }
+                                toast({
+                                  title: canvas?.style.display === 'none' ? "Preview Shown" : "Preview Hidden",
+                                });
+                              }}
+                              className="w-full"
+                            >
+                              Toggle Preview
+                            </Button>
+                          </div>
+                        </GlassCard>
+                      </motion.div>
+                    )}
+                  </>
                 )}
 
                 <p className="text-sm text-muted-foreground">
