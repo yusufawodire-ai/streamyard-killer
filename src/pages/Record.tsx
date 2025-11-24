@@ -75,6 +75,7 @@ const Record = () => {
   };
 
   const handleDragStart = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent text selection
     setIsDragging(true);
     const startX = e.clientX - controlsPosition.x;
     const startY = e.clientY - controlsPosition.y;
@@ -227,57 +228,69 @@ const Record = () => {
   // Show recording interface
   if (currentStep === 'recording' && (state.isRecording || isUploading)) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-background via-background to-primary/5">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-2xl"
-        >
-          <GlassCard className="p-8 text-center space-y-6">
-            {isUploading ? (
-              <>
-                <Upload className="h-16 w-16 mx-auto text-primary animate-pulse" />
-                <h2 className="text-2xl font-bold">Processing Recording</h2>
-                <p className="text-muted-foreground">
-                  Uploading your video and starting transcription...
-                </p>
-                <Progress value={uploadProgress} className="w-full" />
-                <p className="text-sm text-muted-foreground">{uploadProgress}%</p>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center justify-center gap-4">
-                  <Badge variant="destructive" className="px-4 py-2 text-lg animate-pulse">
-                    <div className="h-3 w-3 bg-white rounded-full mr-2 animate-pulse" />
-                    REC {formatDuration(state.duration)}
-                  </Badge>
-                </div>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+        {/* Main centered recording status card */}
+        <div className="flex items-center justify-center min-h-screen p-6">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-2xl"
+          >
+            <GlassCard className="p-8 text-center space-y-6">
+              {isUploading ? (
+                <>
+                  <Upload className="h-16 w-16 mx-auto text-primary animate-pulse" />
+                  <h2 className="text-2xl font-bold">Processing Recording</h2>
+                  <p className="text-muted-foreground">
+                    Uploading your video and starting transcription...
+                  </p>
+                  <Progress value={uploadProgress} className="w-full" />
+                  <p className="text-sm text-muted-foreground">{uploadProgress}%</p>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-center gap-4">
+                    <Badge variant="destructive" className="px-4 py-2 text-lg animate-pulse">
+                      <div className="h-3 w-3 bg-white rounded-full mr-2 animate-pulse" />
+                      REC {formatDuration(state.duration)}
+                    </Badge>
+                  </div>
 
-                <div className="space-y-2">
-                  <h2 className="text-2xl font-bold">{title}</h2>
-                  <p className="text-sm text-muted-foreground">Session ID: {sessionId}</p>
-                </div>
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-bold">{title}</h2>
+                    <p className="text-sm text-muted-foreground">Session ID: {sessionId}</p>
+                  </div>
 
-                <div className="flex items-center justify-center gap-4">
-                  {state.isPaused ? (
-                    <Button onClick={resumeRecording} size="lg" variant="outline">
-                      <Play className="mr-2 h-5 w-5" />
-                      Resume
+                  <div className="flex items-center justify-center gap-4">
+                    {state.isPaused ? (
+                      <Button onClick={resumeRecording} size="lg" variant="outline">
+                        <Play className="mr-2 h-5 w-5" />
+                        Resume
+                      </Button>
+                    ) : (
+                      <Button onClick={pauseRecording} size="lg" variant="outline">
+                        <Pause className="mr-2 h-5 w-5" />
+                        Pause
+                      </Button>
+                    )}
+                    <Button onClick={handleStopRecording} size="lg" variant="destructive">
+                      <Square className="mr-2 h-5 w-5" />
+                      Stop & Save
                     </Button>
-                  ) : (
-                    <Button onClick={pauseRecording} size="lg" variant="outline">
-                      <Pause className="mr-2 h-5 w-5" />
-                      Pause
-                    </Button>
-                  )}
-                  <Button onClick={handleStopRecording} size="lg" variant="destructive">
-                    <Square className="mr-2 h-5 w-5" />
-                    Stop & Save
-                  </Button>
-                </div>
+                  </div>
 
-        {/* Recording Controls - Always visible */}
-        <>
+                  <p className="text-sm text-muted-foreground">
+                    Your screen is being recorded. Click "Stop & Save" when finished.
+                  </p>
+                </>
+              )}
+            </GlassCard>
+          </motion.div>
+        </div>
+
+        {/* Draggable Control Panel - OUTSIDE centered container, SIBLING to it */}
+        {!isUploading && (
+          <>
           {/* Collapsed Button */}
           {!isControlsExpanded && (
                       <motion.div
@@ -291,8 +304,8 @@ const Record = () => {
                         }}
                         className="pointer-events-auto"
                       >
-                        <GlassCard 
-                          className="p-3 cursor-move"
+                         <GlassCard 
+                          className={`p-3 select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
                           onMouseDown={handleDragStart}
                         >
                           <Button
@@ -327,8 +340,8 @@ const Record = () => {
                       >
                         <GlassCard className="w-[320px]">
                           {/* Drag Handle Header */}
-                          <div 
-                            className="p-2 bg-muted/50 rounded-t-lg cursor-move flex items-center justify-between"
+                           <div 
+                            className={`p-2 bg-muted/50 rounded-t-lg select-none flex items-center justify-between ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
                             onMouseDown={handleDragStart}
                           >
                             <div className="flex items-center gap-2">
@@ -463,21 +476,14 @@ const Record = () => {
                           </div>
                         </GlassCard>
                       </motion.div>
-                    )}
-                  </>
+                     )}
+                   </>
+                 )}
+               </div>
+             );
+           }
 
-                <p className="text-sm text-muted-foreground">
-                  Your screen is being recorded. Click "Stop & Save" when finished.
-                </p>
-              </>
-            )}
-          </GlassCard>
-        </motion.div>
-      </div>
-    );
-  }
-
-  // Show initial setup form
+      // Show initial setup form
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
       <motion.div
