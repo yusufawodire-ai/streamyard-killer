@@ -276,11 +276,10 @@ const Record = () => {
                   </Button>
                 </div>
 
-                {/* Webcam Controls - Only show for screen-webcam mode */}
-                {recordingConfig?.mode === 'screen-webcam' && (
-                  <>
-                    {/* Collapsed Button */}
-                    {!isControlsExpanded && (
+        {/* Recording Controls - Always visible */}
+        <>
+          {/* Collapsed Button */}
+          {!isControlsExpanded && (
                       <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
@@ -350,96 +349,101 @@ const Record = () => {
                           </div>
 
                           <div className="p-3 space-y-2">
-                            {/* Hide/Show Webcam */}
-                            <Button
-                              variant={isWebcamVisibleState ? "default" : "outline"}
-                              size="sm"
-                              onClick={handleToggleWebcam}
-                              className="w-full"
-                            >
-                              {isWebcamVisibleState ? (
-                                <><Eye className="h-4 w-4 mr-2" />Hide Webcam</>
-                              ) : (
-                                <><EyeOff className="h-4 w-4 mr-2" />Show Webcam</>
-                              )}
-                            </Button>
+                            {/* Webcam-Specific Controls - Only for screen-webcam mode */}
+                            {recordingConfig?.mode === 'screen-webcam' && (
+                              <>
+                                {/* Hide/Show Webcam */}
+                                <Button
+                                  variant={isWebcamVisibleState ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={handleToggleWebcam}
+                                  className="w-full"
+                                >
+                                  {isWebcamVisibleState ? (
+                                    <><Eye className="h-4 w-4 mr-2" />Hide Webcam</>
+                                  ) : (
+                                    <><EyeOff className="h-4 w-4 mr-2" />Show Webcam</>
+                                  )}
+                                </Button>
 
-                            {/* Webcam Size Control */}
-                            {isWebcamVisibleState && (
-                              <GlassCard className="p-3">
-                                <div className="space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <Label className="text-xs">Webcam Size</Label>
-                                    <span className="text-xs font-mono">
-                                      {recordingConfig.webcam?.size || 15}%
-                                    </span>
-                                  </div>
-                                  <div className="flex gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleSizeChange(-1)}
-                                      disabled={!recordingConfig.webcam || recordingConfig.webcam.size <= 10}
-                                      className="flex-1"
-                                    >
-                                      <Minus className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleSizeChange(1)}
-                                      disabled={!recordingConfig.webcam || recordingConfig.webcam.size >= 30}
-                                      className="flex-1"
-                                    >
-                                      <Plus className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </GlassCard>
+                                {/* Webcam Size Control */}
+                                {isWebcamVisibleState && (
+                                  <GlassCard className="p-3">
+                                    <div className="space-y-2">
+                                      <div className="flex items-center justify-between">
+                                        <Label className="text-xs">Webcam Size</Label>
+                                        <span className="text-xs font-mono">
+                                          {recordingConfig.webcam?.size || 15}%
+                                        </span>
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleSizeChange(-1)}
+                                          disabled={!recordingConfig.webcam || recordingConfig.webcam.size <= 10}
+                                          className="flex-1"
+                                        >
+                                          <Minus className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleSizeChange(1)}
+                                          disabled={!recordingConfig.webcam || recordingConfig.webcam.size >= 30}
+                                          className="flex-1"
+                                        >
+                                          <Plus className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </GlassCard>
+                                )}
+
+                                {/* Position Controls */}
+                                {isWebcamVisibleState && (
+                                  <GlassCard className="p-3">
+                                    <Label className="text-xs mb-2 block">Webcam Position</Label>
+                                    <div className="grid grid-cols-2 gap-1">
+                                      <Button
+                                        size="sm"
+                                        variant={recordingConfig.webcam?.position === 'top-left' ? 'default' : 'outline'}
+                                        onClick={() => handlePositionChange('top-left')}
+                                        className="p-2"
+                                      >
+                                        <MoveUpLeft className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant={recordingConfig.webcam?.position === 'top-right' ? 'default' : 'outline'}
+                                        onClick={() => handlePositionChange('top-right')}
+                                        className="p-2"
+                                      >
+                                        <MoveUpRight className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant={recordingConfig.webcam?.position === 'bottom-left' ? 'default' : 'outline'}
+                                        onClick={() => handlePositionChange('bottom-left')}
+                                        className="p-2"
+                                      >
+                                        <MoveDownLeft className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant={recordingConfig.webcam?.position === 'bottom-right' ? 'default' : 'outline'}
+                                        onClick={() => handlePositionChange('bottom-right')}
+                                        className="p-2"
+                                      >
+                                        <MoveDownRight className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  </GlassCard>
+                                )}
+                              </>
                             )}
 
-                            {/* Position Controls */}
-                            {isWebcamVisibleState && (
-                              <GlassCard className="p-3">
-                                <Label className="text-xs mb-2 block">Webcam Position</Label>
-                                <div className="grid grid-cols-2 gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant={recordingConfig.webcam?.position === 'top-left' ? 'default' : 'outline'}
-                                    onClick={() => handlePositionChange('top-left')}
-                                    className="p-2"
-                                  >
-                                    <MoveUpLeft className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant={recordingConfig.webcam?.position === 'top-right' ? 'default' : 'outline'}
-                                    onClick={() => handlePositionChange('top-right')}
-                                    className="p-2"
-                                  >
-                                    <MoveUpRight className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant={recordingConfig.webcam?.position === 'bottom-left' ? 'default' : 'outline'}
-                                    onClick={() => handlePositionChange('bottom-left')}
-                                    className="p-2"
-                                  >
-                                    <MoveDownLeft className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant={recordingConfig.webcam?.position === 'bottom-right' ? 'default' : 'outline'}
-                                    onClick={() => handlePositionChange('bottom-right')}
-                                    className="p-2"
-                                  >
-                                    <MoveDownRight className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </GlassCard>
-                            )}
-
-                            {/* Toggle Preview */}
+                            {/* Toggle Preview - Always visible */}
                             <Button
                               variant="outline"
                               size="sm"
@@ -461,7 +465,6 @@ const Record = () => {
                       </motion.div>
                     )}
                   </>
-                )}
 
                 <p className="text-sm text-muted-foreground">
                   Your screen is being recorded. Click "Stop & Save" when finished.
