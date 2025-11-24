@@ -1,79 +1,43 @@
-import { MediaDevice } from '@/types/recording';
-
-// Get all available cameras and microphones
-export const getAvailableDevices = async (): Promise<{
-  cameras: MediaDevice[];
-  microphones: MediaDevice[];
-}> => {
-  try {
-    // Request permissions first
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    stream.getTracks().forEach(track => track.stop());
-    
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    
-    const cameras = devices
+// Enumerate and format devices
+export const getAvailableDevices = async () => {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  
+  return {
+    cameras: devices
       .filter(d => d.kind === 'videoinput')
-      .map((d, index) => ({
-        id: d.deviceId,
-        label: d.label || `Camera ${index + 1}`,
-        kind: 'videoinput' as const,
-      }));
-    
-    const microphones = devices
+      .map(d => ({ id: d.deviceId, label: d.label || 'Camera' })),
+    microphones: devices
       .filter(d => d.kind === 'audioinput')
-      .map((d, index) => ({
-        id: d.deviceId,
-        label: d.label || `Microphone ${index + 1}`,
-        kind: 'audioinput' as const,
-      }));
-    
-    return { cameras, microphones };
-  } catch (error) {
-    console.error('Error getting devices:', error);
-    return { cameras: [], microphones: [] };
-  }
+      .map(d => ({ id: d.deviceId, label: d.label || 'Microphone' })),
+  };
 };
 
-// Test if a specific device is accessible
-export const testDeviceAccess = async (
-  deviceId: string,
-  kind: 'video' | 'audio'
-): Promise<boolean> => {
+// Test device access and permissions
+export const testDeviceAccess = async (deviceId: string, kind: 'video' | 'audio') => {
   try {
-    const constraints = kind === 'video' 
-      ? { video: { deviceId: { exact: deviceId } } }
-      : { audio: { deviceId: { exact: deviceId } } };
-    
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    stream.getTracks().forEach(track => track.stop());
+    const stream = await navigator.mediaDevices.getUserMedia({
+      [kind]: { deviceId }
+    });
+    stream.getTracks().forEach(t => t.stop());
     return true;
   } catch (error) {
-    console.error(`Device ${deviceId} not accessible:`, error);
     return false;
   }
 };
 
-// Get audio level for microphone testing (0-100)
+// Get audio level (for microphone testing)
 export const getAudioLevel = (stream: MediaStream): number => {
-  try {
-    const audioContext = new AudioContext();
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    
-    const source = audioContext.createMediaStreamSource(stream);
-    source.connect(analyser);
-    
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    analyser.getByteFrequencyData(dataArray);
-    
-    // Calculate average volume
-    const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-    return Math.round((average / 255) * 100);
-  } catch (error) {
-    console.error('Error getting audio level:', error);
-    return 0;
-  }
+  const audioContext = new AudioContext();
+  const analyser = audioContext.createAnalyser();
+  const microphone = audioContext.createMediaStreamSource(stream);
+  microphone.connect(analyser);
+  
+  const dataArray = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(dataArray);
+  
+  // Calculate average volume
+  const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+  return average / 255; // Normalize to 0-1
 };
 
 // Resolution presets
