@@ -12,6 +12,7 @@ import SessionDetail from "./pages/SessionDetail";
 import Sessions from "./pages/Sessions";
 import ShareVideo from "./pages/ShareVideo";
 import NotFound from "./pages/NotFound";
+import RecordingControlsPopup from "./pages/RecordingControlsPopup";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/record" element={<Record />} />
+                  <Route path="/recording-controls-popup" element={<RecordingControlsPopup />} />
                   <Route path="/session/:id" element={<SessionDetail />} />
                   <Route path="/sessions" element={<Sessions />} />
                   <Route path="/share/:shareToken" element={<ShareVideo />} />
