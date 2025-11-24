@@ -232,9 +232,9 @@ const Record = () => {
                 {/* Webcam Controls - Only show for screen-webcam mode */}
                 {recordingConfig?.mode === 'screen-webcam' && (
                   <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="fixed top-6 right-6 z-[9999] space-y-2"
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="fixed top-6 left-1/2 -translate-x-1/2 z-[10001] pointer-events-auto space-y-2"
                   >
                     {/* Hide/Show Button */}
                     <GlassCard className="p-3">
@@ -292,6 +292,26 @@ const Record = () => {
                         </div>
                       </GlassCard>
                     )}
+
+                    {/* Hide Preview Toggle */}
+                    <GlassCard className="p-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const canvas = document.querySelector('canvas');
+                          if (canvas) {
+                            canvas.style.display = canvas.style.display === 'none' ? 'block' : 'none';
+                          }
+                          toast({
+                            title: canvas?.style.display === 'none' ? "Preview Shown" : "Preview Hidden",
+                          });
+                        }}
+                        className="w-full"
+                      >
+                        Toggle Preview
+                      </Button>
+                    </GlassCard>
                   </motion.div>
                 )}
 

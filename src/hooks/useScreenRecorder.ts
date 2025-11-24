@@ -73,21 +73,22 @@ export const useScreenRecorder = () => {
         canvas.height = config.resolution.height;
         canvasRef.current = canvas;
         
-        // Style and append canvas to DOM for live preview
+        // Style as small corner preview (won't be captured if screen share excludes it)
         canvas.style.position = 'fixed';
-        canvas.style.top = '50%';
-        canvas.style.left = '50%';
-        canvas.style.transform = 'translate(-50%, -50%)';
-        canvas.style.width = '80vw';
+        canvas.style.bottom = '80px';
+        canvas.style.right = '20px';
+        canvas.style.width = '320px';
         canvas.style.height = 'auto';
-        canvas.style.maxHeight = '80vh';
-        canvas.style.zIndex = '9998';
-        canvas.style.border = '3px solid hsl(var(--primary))';
+        canvas.style.maxHeight = '180px';
+        canvas.style.zIndex = '10000';
+        canvas.style.border = '2px solid hsl(var(--primary))';
         canvas.style.borderRadius = '8px';
-        canvas.style.boxShadow = '0 20px 60px rgba(0,0,0,0.8)';
+        canvas.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
         canvas.style.backgroundColor = '#000';
+        canvas.style.pointerEvents = 'none'; // Don't block clicks
+        canvas.style.opacity = '0.95';
         document.body.appendChild(canvas);
-        console.log('✅ Canvas preview added to DOM');
+        console.log('✅ Canvas preview added to DOM (corner preview)');
         
         const ctx = canvas.getContext('2d')!;
 
