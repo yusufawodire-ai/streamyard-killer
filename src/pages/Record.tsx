@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +15,6 @@ import { Progress } from "@/components/ui/progress";
 import RecordingSettings from "@/components/RecordingSettings";
 import WebcamPositionControl from "@/components/WebcamPositionControl";
 import { RecordingConfig } from "@/types/recording";
-import { useRecordingSync, RecordingSyncCommand } from "@/hooks/useRecordingSync";
 
 const Record = () => {
   const [currentStep, setCurrentStep] = useState<'setup' | 'settings' | 'recording'>('setup');
@@ -33,8 +32,6 @@ const Record = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { state, startRecording, stopRecording, pauseRecording, resumeRecording, uploadRecording, updateWebcamPosition, updateWebcamSize, toggleWebcamVisibility, isWebcamVisible } = useScreenRecorder();
-  const { broadcastState, setCommandCallback } = useRecordingSync(true);
-  const popupWindowRef = useRef<Window | null>(null);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -143,13 +140,9 @@ const Record = () => {
       // Start screen recording with config
       await startRecording(config);
 
-      // Open popup control window
-      const popupFeatures = 'width=400,height=600,left=100,top=100,resizable=yes,scrollbars=yes';
-      popupWindowRef.current = window.open('/recording-controls-popup', 'Recording Controls', popupFeatures);
-
       toast({
         title: "Recording Started",
-        description: `Recording in ${config.mode} mode. Control window opened.`,
+        description: `Recording in ${config.mode} mode`,
       });
     } catch (error) {
       console.error('Error starting recording:', error);
@@ -200,11 +193,6 @@ const Record = () => {
 
       setUploadProgress(100);
 
-      // Close popup window
-      if (popupWindowRef.current && !popupWindowRef.current.closed) {
-        popupWindowRef.current.close();
-      }
-
       toast({
         title: "Recording Complete",
         description: "Your video is ready and transcription has started",
@@ -224,61 +212,6 @@ const Record = () => {
       setUploadProgress(0);
     }
   };
-
-  // Set up command callback for popup window
-  useEffect(() => {
-    setCommandCallback((command: RecordingSyncCommand) => {
-      switch (command.type) {
-        case 'pause':
-          pauseRecording();
-          break;
-        case 'resume':
-          resumeRecording();
-          break;
-        case 'stop':
-          handleStopRecording();
-          break;
-        case 'toggle-webcam':
-          handleToggleWebcam();
-          break;
-        case 'update-webcam-position':
-          handlePositionChange(command.payload);
-          break;
-        case 'update-webcam-size':
-          handleSizeChange(command.payload);
-          break;
-      }
-    });
-  }, [pauseRecording, resumeRecording, handleStopRecording]);
-
-  // Broadcast state to popup window
-  useEffect(() => {
-    if (state.isRecording && sessionId) {
-      broadcastState({
-        sessionId,
-        title,
-        brandId,
-        duration: state.duration,
-        isRecording: state.isRecording,
-        isPaused: state.isPaused,
-        isUploading,
-        uploadProgress,
-        mode: recordingConfig?.mode || 'screen',
-        isWebcamVisible: isWebcamVisibleState,
-        webcamPosition: recordingConfig?.webcam?.position,
-        webcamSize: recordingConfig?.webcam?.size,
-      });
-    }
-  }, [state, sessionId, isUploading, uploadProgress, isWebcamVisibleState, recordingConfig]);
-
-  // Close popup window on unmount
-  useEffect(() => {
-    return () => {
-      if (popupWindowRef.current && !popupWindowRef.current.closed) {
-        popupWindowRef.current.close();
-      }
-    };
-  }, []);
 
   // Show settings step
   if (currentStep === 'settings') {
