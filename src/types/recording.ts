@@ -4,6 +4,14 @@ export type WebcamShape = 'circle' | 'square' | 'rounded';
 export type Resolution = '720p' | '1080p' | '1440p' | '4k';
 export type FrameRate = 24 | 30 | 60;
 
+export interface CropSettings {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  preset?: 'full' | '1080p' | '720p' | 'square' | 'vertical' | 'custom';
+}
+
 export interface RecordingConfig {
   mode: RecordingMode;
   
@@ -28,6 +36,9 @@ export interface RecordingConfig {
     borderWidth: number; // 0, 2, 4
     borderColor: string;
   };
+  
+  // Screen area cropping settings
+  crop?: CropSettings;
 }
 
 export interface MediaDevice {

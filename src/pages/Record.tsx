@@ -14,13 +14,15 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import RecordingSettings from "@/components/RecordingSettings";
 import WebcamPositionControl from "@/components/WebcamPositionControl";
-import { RecordingConfig } from "@/types/recording";
+import ScreenAreaSelector from "@/components/ScreenAreaSelector";
+import { RecordingConfig, CropSettings } from "@/types/recording";
 
 const Record = () => {
-  const [currentStep, setCurrentStep] = useState<'setup' | 'settings' | 'recording'>('setup');
+  const [currentStep, setCurrentStep] = useState<'setup' | 'area-selection' | 'settings' | 'recording'>('setup');
   const [brandId, setBrandId] = useState("");
   const [title, setTitle] = useState("");
   const [recordingConfig, setRecordingConfig] = useState<RecordingConfig | null>(null);
+  const [cropSettings, setCropSettings] = useState<CropSettings | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -103,7 +105,7 @@ const Record = () => {
     document.addEventListener('mouseup', handleDragEnd);
   };
 
-  const handleContinueToSettings = () => {
+  const handleContinueToAreaSelection = () => {
     if (!brandId || !title.trim()) {
       toast({
         title: "Validation Error",
@@ -112,12 +114,23 @@ const Record = () => {
       });
       return;
     }
+    setCurrentStep('area-selection');
+  };
+
+  const handleContinueToSettings = (crop: CropSettings) => {
+    setCropSettings(crop);
     setCurrentStep('settings');
   };
 
   const handleStartRecording = async (config: RecordingConfig) => {
     setIsCreating(true);
-    setRecordingConfig(config);
+    
+    // Add crop settings to config
+    const finalConfig = {
+      ...config,
+      crop: cropSettings || undefined,
+    };
+    setRecordingConfig(finalConfig);
 
     try {
       // Create session in database
@@ -127,7 +140,7 @@ const Record = () => {
           brand_id: brandId,
           title: title.trim(),
           status: 'recording',
-          recording_metadata: config as any,
+          recording_metadata: finalConfig as any,
         })
         .select()
         .single();
@@ -138,7 +151,7 @@ const Record = () => {
       setCurrentStep('recording');
 
       // Start screen recording with config
-      await startRecording(config);
+      await startRecording(finalConfig);
 
       toast({
         title: "Recording Started",
@@ -184,18 +197,11 @@ const Record = () => {
 
       if (updateError) throw updateError;
 
-      setUploadProgress(90);
-
-      // Start transcription
-      await supabase.functions.invoke('start-transcription', {
-        body: { session_id: sessionId },
-      });
-
       setUploadProgress(100);
 
       toast({
         title: "Recording Complete",
-        description: "Your video is ready and transcription has started",
+        description: "Your video is ready! You can transcribe it from the session page.",
       });
 
       // Navigate to session detail
@@ -213,13 +219,23 @@ const Record = () => {
     }
   };
 
+  // Show area selection step
+  if (currentStep === 'area-selection') {
+    return (
+      <ScreenAreaSelector
+        onContinue={handleContinueToSettings}
+        onBack={() => setCurrentStep('setup')}
+      />
+    );
+  }
+
   // Show settings step
   if (currentStep === 'settings') {
     return (
       <RecordingSettings
         brandId={brandId}
         title={title}
-        onBack={() => setCurrentStep('setup')}
+        onBack={() => setCurrentStep('area-selection')}
         onStartRecording={handleStartRecording}
       />
     );
@@ -526,13 +542,13 @@ const Record = () => {
             </div>
 
             <Button 
-              onClick={handleContinueToSettings} 
+              onClick={handleContinueToAreaSelection} 
               disabled={isCreating}
               className="w-full h-14 text-lg"
               size="lg"
             >
               <Video className="mr-2 h-5 w-5" />
-              Continue to Settings
+              Continue to Area Selection
             </Button>
           </div>
         </GlassCard>
