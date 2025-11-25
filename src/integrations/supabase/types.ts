@@ -97,6 +97,50 @@ export type Database = {
           },
         ]
       }
+      session_brand_variants: {
+        Row: {
+          base_session_id: string
+          brand_id: string
+          created_at: string | null
+          final_video_url: string | null
+          id: string
+          intro_url: string | null
+          outro_url: string | null
+          updated_at: string | null
+          variant_name: string | null
+        }
+        Insert: {
+          base_session_id: string
+          brand_id: string
+          created_at?: string | null
+          final_video_url?: string | null
+          id?: string
+          intro_url?: string | null
+          outro_url?: string | null
+          updated_at?: string | null
+          variant_name?: string | null
+        }
+        Update: {
+          base_session_id?: string
+          brand_id?: string
+          created_at?: string | null
+          final_video_url?: string | null
+          id?: string
+          intro_url?: string | null
+          outro_url?: string | null
+          updated_at?: string | null
+          variant_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_brand_variants_base_session_id_fkey"
+            columns: ["base_session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sessions: {
         Row: {
           brand_id: string
