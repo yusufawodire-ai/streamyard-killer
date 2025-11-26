@@ -16,6 +16,7 @@ import RecordingSettings from "@/components/RecordingSettings";
 import WebcamPositionControl from "@/components/WebcamPositionControl";
 import ScreenAreaSelector from "@/components/ScreenAreaSelector";
 import { RecordingConfig, CropSettings } from "@/types/recording";
+import { TranscriptPanel } from "@/components/TranscriptPanel";
 
 const Record = () => {
   const [currentStep, setCurrentStep] = useState<'setup' | 'area-selection' | 'settings' | 'recording'>('setup');
@@ -31,6 +32,8 @@ const Record = () => {
   const [isControlsExpanded, setIsControlsExpanded] = useState(true);
   const [controlsPosition, setControlsPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [pauseTranscript, setPauseTranscript] = useState<string | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { state, startRecording, stopRecording, pauseRecording, resumeRecording, uploadRecording, updateWebcamPosition, updateWebcamSize, toggleWebcamVisibility, isWebcamVisible } = useScreenRecorder();
@@ -169,6 +172,76 @@ const Record = () => {
     }
   };
 
+  const uploadPartialVideo = async (blob: Blob, sessionId: string): Promise<string> => {
+    const fileName = `${brandId}/${sessionId}_partial_${Date.now()}.webm`;
+    
+    const { error } = await supabase.storage
+      .from('final-videos')
+      .upload(fileName, blob, {
+        contentType: 'video/webm',
+        upsert: true,
+      });
+
+    if (error) throw error;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('final-videos')
+      .getPublicUrl(fileName);
+
+    return publicUrl;
+  };
+
+  const handlePause = async () => {
+    setIsTranscribing(true);
+    setPauseTranscript(null);
+    
+    try {
+      // 1. Pause and get current blob
+      const partialBlob = await pauseRecording();
+      
+      if (!partialBlob || !sessionId) {
+        toast({
+          title: "Error",
+          description: "Could not capture recording for transcription",
+          variant: "destructive",
+        });
+        setIsTranscribing(false);
+        return;
+      }
+
+      // 2. Upload to temp storage
+      const tempUrl = await uploadPartialVideo(partialBlob, sessionId);
+      
+      // 3. Call Whisper transcription
+      const { data, error } = await supabase.functions.invoke('start-transcription', {
+        body: { 
+          session_id: sessionId,
+          video_url: tempUrl,
+          is_partial: true,
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data?.text) {
+        setPauseTranscript(data.text);
+        toast({
+          title: "Transcript Ready",
+          description: "Your transcript is available in the panel",
+        });
+      }
+    } catch (error) {
+      console.error('Error transcribing:', error);
+      toast({
+        title: "Transcription Error",
+        description: error instanceof Error ? error.message : "Failed to generate transcript",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
   const handleStopRecording = async () => {
     if (!sessionId) return;
 
@@ -284,7 +357,7 @@ const Record = () => {
                         Resume
                       </Button>
                     ) : (
-                      <Button onClick={pauseRecording} size="lg" variant="outline">
+                      <Button onClick={handlePause} size="lg" variant="outline">
                         <Pause className="mr-2 h-5 w-5" />
                         Pause
                       </Button>
@@ -490,10 +563,18 @@ const Record = () => {
                               Toggle Preview
                             </Button>
                           </div>
-                        </GlassCard>
+                         </GlassCard>
                       </motion.div>
                      )}
                    </>
+                 )}
+
+                 {/* Transcript Panel - Show when transcript is available or loading */}
+                 {(pauseTranscript || isTranscribing) && (
+                   <TranscriptPanel
+                     transcript={pauseTranscript}
+                     isLoading={isTranscribing}
+                   />
                  )}
                </div>
              );

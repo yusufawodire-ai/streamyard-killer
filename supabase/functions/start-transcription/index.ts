@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { session_id } = await req.json();
+    const { session_id, video_url, is_partial } = await req.json();
 
     // Validate required fields
     if (!session_id) {
@@ -25,45 +25,52 @@ serve(async (req) => {
       );
     }
 
-    console.log('[Whisper] Starting transcription for session:', session_id);
+    console.log('[Whisper] Starting transcription for session:', session_id, 'is_partial:', is_partial);
 
     // Initialize Supabase client with service role
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch the session
-    const { data: session, error: fetchError } = await supabase
-      .from('sessions')
-      .select('*')
-      .eq('id', session_id)
-      .maybeSingle();
+    // Determine video URL (use provided URL or fetch from session)
+    let videoUrlToUse = video_url;
+    
+    if (!videoUrlToUse) {
+      // Fetch the session
+      const { data: session, error: fetchError } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('id', session_id)
+        .maybeSingle();
 
-    if (fetchError) {
-      console.error('[Whisper] Error fetching session:', fetchError);
-      return new Response(
-        JSON.stringify({ error: 'Database error', details: fetchError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (fetchError) {
+        console.error('[Whisper] Error fetching session:', fetchError);
+        return new Response(
+          JSON.stringify({ error: 'Database error', details: fetchError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!session) {
+        console.error('[Whisper] Session not found:', session_id);
+        return new Response(
+          JSON.stringify({ error: 'Session not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!session.final_video_url) {
+        console.error('[Whisper] No video URL available for session:', session_id);
+        return new Response(
+          JSON.stringify({ error: 'Recording not ready yet' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      videoUrlToUse = session.final_video_url;
     }
 
-    if (!session) {
-      console.error('[Whisper] Session not found:', session_id);
-      return new Response(
-        JSON.stringify({ error: 'Session not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!session.final_video_url) {
-      console.error('[Whisper] No video URL available for session:', session_id);
-      return new Response(
-        JSON.stringify({ error: 'Recording not ready yet' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('[Whisper] Downloading video:', session.final_video_url);
+    console.log('[Whisper] Downloading video:', videoUrlToUse);
 
     // Get OpenAI API key
     const openaiKey = Deno.env.get('OPENAI_API_KEY');
@@ -75,17 +82,19 @@ serve(async (req) => {
       );
     }
 
-    // Update session status to transcribing
-    await supabase
-      .from('sessions')
-      .update({ 
-        status: 'transcribing',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', session.id);
+    // Update session status to transcribing (skip for partial)
+    if (!is_partial) {
+      await supabase
+        .from('sessions')
+        .update({ 
+          status: 'transcribing',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', session_id);
+    }
 
     // Download the video file
-    const videoResponse = await fetch(session.final_video_url);
+    const videoResponse = await fetch(videoUrlToUse);
     if (!videoResponse.ok) {
       console.error('[Whisper] Failed to download video:', videoResponse.statusText);
       return new Response(
@@ -119,26 +128,29 @@ serve(async (req) => {
       const errorText = await whisperResponse.text();
       console.error('[Whisper] API error:', whisperResponse.status, errorText);
       
-      // Create transcript record with error
-      await supabase
-        .from('transcripts')
-        .insert({
-          session_id: session.id,
-          status: 'error',
-          provider: 'openai-whisper',
-          error_message: `Whisper API error: ${errorText}`,
-          language: 'en',
-        });
+      // Only save error to DB if not partial
+      if (!is_partial) {
+        // Create transcript record with error
+        await supabase
+          .from('transcripts')
+          .insert({
+            session_id: session_id,
+            status: 'error',
+            provider: 'openai-whisper',
+            error_message: `Whisper API error: ${errorText}`,
+            language: 'en',
+          });
 
-      // Update session status
-      await supabase
-        .from('sessions')
-        .update({ 
-          status: 'error',
-          error_message: 'Transcription failed',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', session.id);
+        // Update session status
+        await supabase
+          .from('sessions')
+          .update({ 
+            status: 'error',
+            error_message: 'Transcription failed',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', session_id);
+      }
 
       return new Response(
         JSON.stringify({ error: 'Failed to transcribe audio', details: errorText }),
@@ -149,11 +161,23 @@ serve(async (req) => {
     const whisperData = await whisperResponse.json();
     console.log('[Whisper] Transcription completed, text length:', whisperData.text?.length || 0);
 
+    // If this is a partial transcription, just return the text without saving to DB
+    if (is_partial) {
+      console.log('[Whisper] Partial transcription, returning text only');
+      return new Response(
+        JSON.stringify({
+          text: whisperData.text,
+          word_count: whisperData.text ? whisperData.text.split(/\s+/).length : 0,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Save transcript to database with status 'completed'
     const { data: transcript, error: transcriptError } = await supabase
       .from('transcripts')
       .insert({
-        session_id: session.id,
+        session_id: session_id,
         status: 'completed',
         provider: 'openai-whisper',
         language: 'en',
@@ -179,7 +203,7 @@ serve(async (req) => {
         status: 'completed',
         updated_at: new Date().toISOString(),
       })
-      .eq('id', session.id);
+      .eq('id', session_id);
 
     console.log('[Whisper] Transcription saved successfully:', transcript.id);
 
