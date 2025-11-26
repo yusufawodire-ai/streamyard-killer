@@ -56,10 +56,10 @@ const BrandSelector = ({ selectedBrand, onSelectBrand }: BrandSelectorProps) => 
       <CollapsibleTrigger className="w-full">
         <div className={cn(
           "w-full p-4 flex items-center justify-between cursor-pointer group",
-          "backdrop-blur-md bg-white/10 border rounded-lg transition-all duration-300",
+          "backdrop-blur-md bg-white/80 dark:bg-white/10 border rounded-lg transition-all duration-300",
           selectedBrand 
-            ? "border-visa-light-lilac/50 shadow-[0_0_15px_rgba(167,139,250,0.3)]" 
-            : "border-visa-lilac/30"
+            ? "border-primary/30 shadow-[0_0_15px_rgba(167,139,250,0.2)]" 
+            : "border-border"
         )}>
           <div className="flex items-center gap-3">
             {selectedBrandData ? (
@@ -104,7 +104,7 @@ const BrandSelector = ({ selectedBrand, onSelectBrand }: BrandSelectorProps) => 
               className="mt-2"
             >
               <motion.div 
-                className="backdrop-blur-md bg-black/40 border border-visa-lilac/30 rounded-lg shadow-xl z-[60] overflow-hidden"
+                className="backdrop-blur-xl bg-white/90 dark:bg-black/40 border border-border dark:border-white/10 rounded-lg shadow-xl z-[60] overflow-hidden"
                 initial="hidden"
                 animate="visible"
                 variants={{
@@ -128,11 +128,11 @@ const BrandSelector = ({ selectedBrand, onSelectBrand }: BrandSelectorProps) => 
                       whileHover={{ scale: 1.005 }}
                       whileTap={{ scale: 0.998 }}
                       className={cn(
-                        "px-4 py-3 cursor-pointer transition-colors duration-200 text-white",
-                        "border-b border-visa-lilac/10 last:border-b-0",
+                        "px-4 py-3 cursor-pointer transition-colors duration-200",
+                        "border-b border-border/50 last:border-b-0",
                         "first:rounded-t-lg last:rounded-b-lg",
-                        isSelected && "bg-visa-lilac/30",
-                        !isSelected && "hover:bg-visa-lilac/20"
+                        isSelected && "bg-primary/10 dark:bg-primary/20",
+                        !isSelected && "hover:bg-muted/50 dark:hover:bg-white/10"
                       )}
                       onClick={() => {
                         onSelectBrand(isSelected ? null : brand.id);
