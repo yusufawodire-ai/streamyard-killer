@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Share2, Eye, Trash2, Video } from "lucide-react";
+import { Clock, Share2, Eye, Trash2, Video, Star } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
@@ -18,9 +18,12 @@ interface VideoCardProps {
     thumbnail_url: string | null;
     final_video_url: string | null;
     raw_video_url: string | null;
+    is_starred?: boolean;
   };
   onDelete: (id: string) => void;
   onShare: (id: string) => void;
+  onToggleStar?: (id: string) => void;
+  showStarButton?: boolean;
 }
 
 const formatDuration = (seconds: number | null): string => {
@@ -44,7 +47,13 @@ const getStatusColor = (status: string) => {
   }
 };
 
-export const VideoCard = ({ session, onDelete, onShare }: VideoCardProps) => {
+export const VideoCard = ({
+  session,
+  onDelete,
+  onShare,
+  onToggleStar,
+  showStarButton = true,
+}: VideoCardProps) => {
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
 
@@ -82,6 +91,13 @@ export const VideoCard = ({ session, onDelete, onShare }: VideoCardProps) => {
             </div>
           )}
 
+          {/* Star Badge */}
+          {session.is_starred && (
+            <div className="absolute top-2 right-2">
+              <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+            </div>
+          )}
+
           {/* Hover Overlay */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -100,6 +116,23 @@ export const VideoCard = ({ session, onDelete, onShare }: VideoCardProps) => {
               <Eye className="w-4 h-4 mr-1" />
               View
             </Button>
+            {showStarButton && onToggleStar && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="shadow-lg"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleStar(session.id);
+                }}
+              >
+                <Star
+                  className={`w-4 h-4 ${
+                    session.is_starred ? "fill-yellow-500 text-yellow-500" : ""
+                  }`}
+                />
+              </Button>
+            )}
             <Button
               size="sm"
               variant="secondary"

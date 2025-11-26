@@ -16,9 +16,17 @@ interface VideoGridProps {
   sessions: Session[];
   onDelete: (id: string) => void;
   onShare: (id: string) => void;
+  onToggleStar?: (id: string) => void;
+  showStarButton?: boolean;
 }
 
-export const VideoGrid = ({ sessions, onDelete, onShare }: VideoGridProps) => {
+export const VideoGrid = ({
+  sessions,
+  onDelete,
+  onShare,
+  onToggleStar,
+  showStarButton = true,
+}: VideoGridProps) => {
   if (sessions.length === 0) {
     return (
       <div className="text-center py-16">
@@ -38,6 +46,8 @@ export const VideoGrid = ({ sessions, onDelete, onShare }: VideoGridProps) => {
           session={session}
           onDelete={onDelete}
           onShare={onShare}
+          onToggleStar={onToggleStar}
+          showStarButton={showStarButton}
         />
       ))}
     </div>

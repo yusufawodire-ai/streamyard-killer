@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { VideoGrid } from "@/components/VideoGrid";
+import { FolderSidebar } from "@/components/FolderSidebar";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, SortAsc, FolderPlus, Image } from "lucide-react";
+import { Search, SortAsc, Star, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { generateThumbnailForSession } from "@/utils/generateThumbnailFromUrl";
 
@@ -22,6 +23,7 @@ const Sessions = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("date-desc");
   const [generatingThumbnails, setGeneratingThumbnails] = useState(false);
+  const [selectedView, setSelectedView] = useState("all");
 
   const { data: sessions, isLoading, refetch } = useQuery({
     queryKey: ["sessions"],
@@ -68,7 +70,7 @@ const Sessions = () => {
         // Refetch sessions to get updated thumbnail URLs
         await refetch();
         setGeneratingThumbnails(false);
-        
+
         toast({
           title: "Thumbnails Generated",
           description: `Generated ${sessionsNeedingThumbnails.length} thumbnails`,
@@ -79,8 +81,23 @@ const Sessions = () => {
     generateMissingThumbnails();
   }, [sessions, generatingThumbnails, refetch, toast]);
 
+  // Filter sessions based on selected view
+  const viewFilteredSessions = sessions?.filter((session) => {
+    if (selectedView === "all") {
+      return !session.is_trashed;
+    } else if (selectedView === "starred") {
+      return session.is_starred && !session.is_trashed;
+    } else if (selectedView === "trash") {
+      return session.is_trashed;
+    } else if (selectedView.startsWith("folder:")) {
+      const folderId = selectedView.replace("folder:", "");
+      return session.folder_id === folderId && !session.is_trashed;
+    }
+    return true;
+  });
+
   // Filter and sort sessions
-  const filteredSessions = sessions
+  const filteredSessions = viewFilteredSessions
     ?.filter((session) =>
       session.title.toLowerCase().includes(searchQuery.toLowerCase())
     )
@@ -103,29 +120,92 @@ const Sessions = () => {
       }
     });
 
-  const handleDelete = async (sessionId: string) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this recording? This action cannot be undone."
-    );
-    if (!confirmed) return;
+  // Calculate counts for sidebar
+  const sessionCount = sessions?.filter((s) => !s.is_trashed).length || 0;
+  const starredCount = sessions?.filter((s) => s.is_starred && !s.is_trashed).length || 0;
+  const trashedCount = sessions?.filter((s) => s.is_trashed).length || 0;
+
+  const handleToggleStar = async (sessionId: string) => {
+    const session = sessions?.find((s) => s.id === sessionId);
+    if (!session) return;
 
     try {
-      const { error } = await supabase.from("sessions").delete().eq("id", sessionId);
+      const { error } = await supabase
+        .from("sessions")
+        .update({ is_starred: !session.is_starred })
+        .eq("id", sessionId);
 
       if (error) throw error;
 
       refetch();
       toast({
-        title: "Session Deleted",
-        description: "Recording session has been deleted",
+        title: session.is_starred ? "Removed from Starred" : "Added to Starred",
+        description: session.is_starred
+          ? "Recording removed from starred"
+          : "Recording added to starred",
       });
     } catch (error) {
-      console.error("Delete error:", error);
+      console.error("Toggle star error:", error);
       toast({
-        title: "Delete Failed",
-        description: error instanceof Error ? error.message : "Failed to delete session",
+        title: "Error",
+        description: "Failed to update starred status",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleDelete = async (sessionId: string) => {
+    const session = sessions?.find((s) => s.id === sessionId);
+    if (!session) return;
+
+    if (selectedView === "trash") {
+      // Permanent delete
+      const confirmed = window.confirm(
+        "Permanently delete this recording? This action cannot be undone."
+      );
+      if (!confirmed) return;
+
+      try {
+        const { error } = await supabase.from("sessions").delete().eq("id", sessionId);
+
+        if (error) throw error;
+
+        refetch();
+        toast({
+          title: "Session Deleted",
+          description: "Recording permanently deleted",
+        });
+      } catch (error) {
+        console.error("Delete error:", error);
+        toast({
+          title: "Delete Failed",
+          description: error instanceof Error ? error.message : "Failed to delete session",
+          variant: "destructive",
+        });
+      }
+    } else {
+      // Move to trash
+      try {
+        const { error } = await supabase
+          .from("sessions")
+          .update({ is_trashed: true, trashed_at: new Date().toISOString() })
+          .eq("id", sessionId);
+
+        if (error) throw error;
+
+        refetch();
+        toast({
+          title: "Moved to Trash",
+          description: "Recording moved to trash",
+        });
+      } catch (error) {
+        console.error("Trash error:", error);
+        toast({
+          title: "Failed to move to trash",
+          description: error instanceof Error ? error.message : "Unknown error",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -166,19 +246,41 @@ const Sessions = () => {
   };
 
   return (
-    <div className="min-h-screen p-6">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-[1800px] mx-auto space-y-6"
-      >
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold">All Sessions</h1>
-          <p className="text-muted-foreground mt-1">
-            {sessions?.length || 0} recording{sessions?.length !== 1 ? "s" : ""}
-          </p>
-        </div>
+    <div className="min-h-screen flex">
+      {/* Sidebar */}
+      <FolderSidebar
+        selectedView={selectedView}
+        onViewChange={setSelectedView}
+        sessionCount={sessionCount}
+        starredCount={starredCount}
+        trashedCount={trashedCount}
+      />
+
+      {/* Main Content */}
+      <div className="flex-1 p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-[1800px] mx-auto space-y-6"
+        >
+          {/* Header */}
+          <div>
+            <h1 className="text-3xl font-bold">
+              {selectedView === "all"
+                ? "All Sessions"
+                : selectedView === "starred"
+                ? "Starred"
+                : selectedView === "trash"
+                ? "Trash"
+                : selectedView.startsWith("folder:")
+                ? "Folder"
+                : "Sessions"}
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              {filteredSessions?.length || 0} recording
+              {filteredSessions?.length !== 1 ? "s" : ""}
+            </p>
+          </div>
 
         {/* Search and Sort Bar */}
         <div className="flex flex-col sm:flex-row gap-4">
@@ -207,26 +309,28 @@ const Sessions = () => {
           </Select>
         </div>
 
-        {/* Grid */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="space-y-3">
-                <Skeleton className="aspect-video w-full" />
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-1/2" />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <VideoGrid
-            sessions={filteredSessions || []}
-            onDelete={handleDelete}
-            onShare={handleShare}
-          />
-        )}
-      </motion.div>
-
+          {/* Grid */}
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="space-y-3">
+                  <Skeleton className="aspect-video w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <VideoGrid
+              sessions={filteredSessions || []}
+              onDelete={handleDelete}
+              onShare={handleShare}
+              onToggleStar={handleToggleStar}
+              showStarButton={selectedView !== "trash"}
+            />
+          )}
+        </motion.div>
+      </div>
     </div>
   );
 };
