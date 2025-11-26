@@ -1,3 +1,4 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
@@ -24,7 +25,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('Starting transcription for session:', session_id);
+    console.log('[Whisper] Starting transcription for session:', session_id);
 
     // Initialize Supabase client with service role
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -39,7 +40,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (fetchError) {
-      console.error('Error fetching session:', fetchError);
+      console.error('[Whisper] Error fetching session:', fetchError);
       return new Response(
         JSON.stringify({ error: 'Database error', details: fetchError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -47,7 +48,7 @@ serve(async (req) => {
     }
 
     if (!session) {
-      console.error('Session not found:', session_id);
+      console.error('[Whisper] Session not found:', session_id);
       return new Response(
         JSON.stringify({ error: 'Session not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -55,73 +56,27 @@ serve(async (req) => {
     }
 
     if (!session.final_video_url) {
-      console.error('No video URL available for session:', session_id);
+      console.error('[Whisper] No video URL available for session:', session_id);
       return new Response(
         JSON.stringify({ error: 'Recording not ready yet' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Submitting to AssemblyAI:', session.final_video_url);
+    console.log('[Whisper] Downloading video:', session.final_video_url);
 
-    // Get AssemblyAI API key
-    const assemblyAIKey = Deno.env.get('ASSEMBLYAI_API_KEY');
-    if (!assemblyAIKey) {
-      console.error('ASSEMBLYAI_API_KEY not configured');
+    // Get OpenAI API key
+    const openaiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiKey) {
+      console.error('[Whisper] OPENAI_API_KEY not configured');
       return new Response(
-        JSON.stringify({ error: 'AssemblyAI API key not configured' }),
+        JSON.stringify({ error: 'OpenAI API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Submit to AssemblyAI
-    const transcriptResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
-      method: 'POST',
-      headers: {
-        'Authorization': assemblyAIKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        audio_url: session.final_video_url,
-        language_code: 'en',
-      }),
-    });
-
-    if (!transcriptResponse.ok) {
-      const errorText = await transcriptResponse.text();
-      console.error('AssemblyAI API error:', errorText);
-      return new Response(
-        JSON.stringify({ error: 'Failed to start transcription', details: errorText }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const transcriptData = await transcriptResponse.json();
-    console.log('AssemblyAI job created:', transcriptData.id);
-
-    // Create transcript record
-    const { data: transcript, error: transcriptError } = await supabase
-      .from('transcripts')
-      .insert({
-        session_id: session.id,
-        status: 'processing',
-        provider: 'assemblyai',
-        provider_job_id: transcriptData.id,
-        language: 'en',
-      })
-      .select()
-      .single();
-
-    if (transcriptError) {
-      console.error('Error creating transcript record:', transcriptError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to create transcript record', details: transcriptError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Update session status
-    const { error: updateError } = await supabase
+    // Update session status to transcribing
+    await supabase
       .from('sessions')
       .update({ 
         status: 'transcribing',
@@ -129,23 +84,117 @@ serve(async (req) => {
       })
       .eq('id', session.id);
 
-    if (updateError) {
-      console.error('Error updating session:', updateError);
+    // Download the video file
+    const videoResponse = await fetch(session.final_video_url);
+    if (!videoResponse.ok) {
+      console.error('[Whisper] Failed to download video:', videoResponse.statusText);
+      return new Response(
+        JSON.stringify({ error: 'Failed to download video' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log('Transcription started successfully:', transcript.id);
+    const videoBlob = await videoResponse.blob();
+    console.log('[Whisper] Video downloaded, size:', videoBlob.size, 'bytes');
+
+    // Prepare form data for Whisper API
+    const formData = new FormData();
+    formData.append('file', videoBlob, 'recording.webm');
+    formData.append('model', 'whisper-1');
+    formData.append('language', 'en');
+    formData.append('response_format', 'verbose_json');
+
+    console.log('[Whisper] Sending to OpenAI Whisper API...');
+
+    // Send to OpenAI Whisper (synchronous API call)
+    const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+      },
+      body: formData,
+    });
+
+    if (!whisperResponse.ok) {
+      const errorText = await whisperResponse.text();
+      console.error('[Whisper] API error:', whisperResponse.status, errorText);
+      
+      // Create transcript record with error
+      await supabase
+        .from('transcripts')
+        .insert({
+          session_id: session.id,
+          status: 'error',
+          provider: 'openai-whisper',
+          error_message: `Whisper API error: ${errorText}`,
+          language: 'en',
+        });
+
+      // Update session status
+      await supabase
+        .from('sessions')
+        .update({ 
+          status: 'error',
+          error_message: 'Transcription failed',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', session.id);
+
+      return new Response(
+        JSON.stringify({ error: 'Failed to transcribe audio', details: errorText }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const whisperData = await whisperResponse.json();
+    console.log('[Whisper] Transcription completed, text length:', whisperData.text?.length || 0);
+
+    // Save transcript to database with status 'completed'
+    const { data: transcript, error: transcriptError } = await supabase
+      .from('transcripts')
+      .insert({
+        session_id: session.id,
+        status: 'completed',
+        provider: 'openai-whisper',
+        language: 'en',
+        full_text: whisperData.text,
+        word_count: whisperData.text ? whisperData.text.split(/\s+/).length : 0,
+        completed_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (transcriptError) {
+      console.error('[Whisper] Error creating transcript record:', transcriptError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to save transcript', details: transcriptError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Update session status to completed
+    await supabase
+      .from('sessions')
+      .update({ 
+        status: 'completed',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', session.id);
+
+    console.log('[Whisper] Transcription saved successfully:', transcript.id);
 
     return new Response(
       JSON.stringify({
         transcript_id: transcript.id,
-        assemblyai_job_id: transcriptData.id,
-        status: 'processing',
+        status: 'completed',
+        text: whisperData.text,
+        word_count: transcript.word_count,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Unexpected error in start-transcription:', error);
+    console.error('[Whisper] Unexpected error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: errorMessage }),
