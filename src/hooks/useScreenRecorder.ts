@@ -30,6 +30,7 @@ export const useScreenRecorder = () => {
   const webcamStreamRef = useRef<MediaStream | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
   const webcamVisibleRef = useRef<boolean>(true);
+  const blobChunksRef = useRef<Blob[]>([]);
 
   const startRecording = useCallback(async (config?: RecordingConfig) => {
     try {
@@ -278,12 +279,17 @@ export const useScreenRecorder = () => {
 
       // Initialize RecordRTC with configured bitrate
       const bitrate = config ? calculateVideoBitrate(config.resolution.label) : 2500000;
+      blobChunksRef.current = []; // Reset chunks
       recorderRef.current = new RecordRTC(finalStream, {
         type: 'video',
         mimeType: 'video/webm;codecs=vp9',
         videoBitsPerSecond: bitrate,
         audioBitsPerSecond: config?.audioBitrate || 128000,
         disableLogs: false,
+        timeSlice: 1000, // Collect 1-second chunks
+        ondataavailable: (blob: Blob) => {
+          blobChunksRef.current.push(blob);
+        },
       });
 
       recorderRef.current.startRecording();
@@ -374,14 +380,19 @@ export const useScreenRecorder = () => {
     });
   }, [state.isRecording]);
 
-  const pauseRecording = useCallback(() => {
+  const pauseRecording = useCallback(async (): Promise<Blob | null> => {
     if (recorderRef.current && state.isRecording && !state.isPaused) {
       recorderRef.current.pauseRecording();
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
       setState(prev => ({ ...prev, isPaused: true }));
+      
+      // Combine all chunks collected so far into one blob
+      const combinedBlob = new Blob(blobChunksRef.current, { type: 'video/webm' });
+      return combinedBlob;
     }
+    return null;
   }, [state.isRecording, state.isPaused]);
 
   const resumeRecording = useCallback(() => {
