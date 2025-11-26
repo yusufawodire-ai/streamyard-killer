@@ -21,7 +21,7 @@ const SessionDetail = () => {
   const { toast } = useToast();
 
   // Query for transcript data with auto-polling when processing
-  const { data: transcripts } = useQuery({
+  const { data: transcripts, refetch: refetchTranscripts } = useQuery({
     queryKey: ['transcripts', id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -34,14 +34,6 @@ const SessionDetail = () => {
       return data;
     },
     enabled: !!id,
-    refetchInterval: (query) => {
-      // Auto-poll every 30 seconds if any transcript is processing
-      const transcripts = query.state.data;
-      const hasProcessing = transcripts?.some(
-        t => t.status === 'processing' || t.status === 'pending'
-      );
-      return hasProcessing ? 30000 : false;
-    },
   });
 
   const { data: session, isLoading, refetch } = useQuery({
@@ -91,6 +83,52 @@ const SessionDetail = () => {
       supabase.removeChannel(channel);
     };
   }, [id, refetch]);
+
+  // Check transcription status by calling the edge function
+  useEffect(() => {
+    if (!transcripts?.length) return;
+
+    const processingTranscripts = transcripts.filter(
+      t => t.status === 'processing' || t.status === 'pending'
+    );
+
+    if (processingTranscripts.length === 0) return;
+
+    const checkTranscriptionStatus = async () => {
+      console.log('Checking transcription status for', processingTranscripts.length, 'transcripts');
+      
+      for (const transcript of processingTranscripts) {
+        try {
+          const { data, error } = await supabase.functions.invoke('check-transcription', {
+            body: { transcript_id: transcript.id }
+          });
+
+          if (error) {
+            console.error('Error checking transcription:', error);
+            continue;
+          }
+
+          console.log('Transcription check response:', data);
+
+          // If status changed, refetch transcripts and session
+          if (data?.status === 'completed' || data?.status === 'error') {
+            refetchTranscripts();
+            refetch();
+          }
+        } catch (error) {
+          console.error('Failed to check transcription:', error);
+        }
+      }
+    };
+
+    // Check immediately
+    checkTranscriptionStatus();
+
+    // Then check every 30 seconds
+    const interval = setInterval(checkTranscriptionStatus, 30000);
+
+    return () => clearInterval(interval);
+  }, [transcripts, refetchTranscripts, refetch]);
 
   const handleStartTranscription = async () => {
     if (!id) return;
