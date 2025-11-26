@@ -97,6 +97,44 @@ export type Database = {
           },
         ]
       }
+      folders: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          id: string
+          is_starred: boolean | null
+          name: string
+          parent_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          is_starred?: boolean | null
+          name: string
+          parent_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          is_starred?: boolean | null
+          name?: string
+          parent_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       session_brand_variants: {
         Row: {
           base_session_id: string
@@ -149,8 +187,11 @@ export type Database = {
           duration_seconds: number | null
           error_message: string | null
           final_video_url: string | null
+          folder_id: string | null
           id: string
           is_public: boolean | null
+          is_starred: boolean | null
+          is_trashed: boolean | null
           raw_video_url: string | null
           recorded_at: string | null
           recording_metadata: Json | null
@@ -160,6 +201,7 @@ export type Database = {
           thumbnail_url: string | null
           title: string
           transcript_url: string | null
+          trashed_at: string | null
           updated_at: string | null
           view_count: number | null
         }
@@ -170,8 +212,11 @@ export type Database = {
           duration_seconds?: number | null
           error_message?: string | null
           final_video_url?: string | null
+          folder_id?: string | null
           id?: string
           is_public?: boolean | null
+          is_starred?: boolean | null
+          is_trashed?: boolean | null
           raw_video_url?: string | null
           recorded_at?: string | null
           recording_metadata?: Json | null
@@ -181,6 +226,7 @@ export type Database = {
           thumbnail_url?: string | null
           title: string
           transcript_url?: string | null
+          trashed_at?: string | null
           updated_at?: string | null
           view_count?: number | null
         }
@@ -191,8 +237,11 @@ export type Database = {
           duration_seconds?: number | null
           error_message?: string | null
           final_video_url?: string | null
+          folder_id?: string | null
           id?: string
           is_public?: boolean | null
+          is_starred?: boolean | null
+          is_trashed?: boolean | null
           raw_video_url?: string | null
           recorded_at?: string | null
           recording_metadata?: Json | null
@@ -202,10 +251,19 @@ export type Database = {
           thumbnail_url?: string | null
           title?: string
           transcript_url?: string | null
+          trashed_at?: string | null
           updated_at?: string | null
           view_count?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sessions_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transcripts: {
         Row: {
