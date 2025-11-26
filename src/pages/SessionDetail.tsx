@@ -9,7 +9,7 @@ import { ArrowLeft, Download, Clock, Calendar, FileText, Share2, AlertCircle, Tr
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShareModal } from "@/components/ShareModal";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -18,6 +18,7 @@ const SessionDetail = () => {
   const navigate = useNavigate();
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [isStartingTranscription, setIsStartingTranscription] = useState(false);
+  const autoTranscriptionAttempted = useRef(false);
   const { toast } = useToast();
 
   // Query for transcript data with auto-polling when processing
@@ -84,6 +85,21 @@ const SessionDetail = () => {
     };
   }, [id, refetch]);
 
+  // Auto-start transcription when video is ready
+  useEffect(() => {
+    if (
+      session?.status === 'recorded' &&
+      session?.final_video_url &&
+      transcripts !== undefined &&
+      transcripts.length === 0 &&
+      !isStartingTranscription &&
+      !autoTranscriptionAttempted.current
+    ) {
+      autoTranscriptionAttempted.current = true;
+      console.log('Auto-starting transcription for session:', id);
+      handleStartTranscription();
+    }
+  }, [session, transcripts, isStartingTranscription, id]);
 
   const handleStartTranscription = async () => {
     if (!id) return;
@@ -465,7 +481,7 @@ const SessionDetail = () => {
           ) : (
             <p className="text-muted-foreground text-center py-8">
               {session.status === 'recorded' 
-                ? "Click 'Generate Transcript' to start transcription"
+                ? (isStartingTranscription ? "Generating transcript automatically..." : "Waiting to start transcription...")
                 : "Transcript will be available after recording is complete"}
             </p>
           )}
