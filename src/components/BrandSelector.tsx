@@ -98,7 +98,7 @@ const BrandSelector = ({ selectedBrand, onSelectBrand }: BrandSelectorProps) => 
               className="mt-2"
             >
               <motion.div 
-                className="backdrop-blur-xl bg-background/80 dark:bg-black/60 border border-white/10 dark:border-white/5 rounded-xl shadow-2xl p-3 space-y-1"
+                className="bg-[#0d0d0d]/95 backdrop-blur-sm border border-white/5 rounded-xl shadow-2xl overflow-hidden"
                 initial="hidden"
                 animate="visible"
                 variants={{
@@ -109,7 +109,7 @@ const BrandSelector = ({ selectedBrand, onSelectBrand }: BrandSelectorProps) => 
                   }
                 }}
               >
-                {brands.map((brand) => {
+                {brands.map((brand, index) => {
                   const isSelected = selectedBrand === brand.id;
                   return (
                     <motion.div
@@ -119,13 +119,13 @@ const BrandSelector = ({ selectedBrand, onSelectBrand }: BrandSelectorProps) => 
                         visible: { opacity: 1, y: 0 }
                       }}
                       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                      whileHover={{ scale: 1.005 }}
+                      whileTap={{ scale: 0.998 }}
                       className={cn(
-                        "p-3 rounded-lg cursor-pointer transition-all duration-300 border backdrop-blur-sm",
-                        isSelected
-                          ? "bg-primary/10 border-primary/50 shadow-lg shadow-primary/10"
-                          : "bg-white/5 dark:bg-white/5 border-white/10 dark:border-white/5 hover:bg-white/10 dark:hover:bg-white/10 hover:border-white/20 dark:hover:border-white/10"
+                        "px-4 py-3 cursor-pointer transition-all duration-200",
+                        index % 2 === 0 ? "bg-white/[0.02]" : "bg-transparent",
+                        isSelected && "bg-white/10",
+                        !isSelected && "hover:bg-white/5"
                       )}
                       onClick={() => {
                         onSelectBrand(isSelected ? null : brand.id);
