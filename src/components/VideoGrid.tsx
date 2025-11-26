@@ -10,6 +10,14 @@ interface Session {
   thumbnail_url: string | null;
   final_video_url: string | null;
   raw_video_url: string | null;
+  is_starred?: boolean;
+  folder_id?: string | null;
+}
+
+interface Folder {
+  id: string;
+  name: string;
+  color: string | null;
 }
 
 interface VideoGridProps {
@@ -17,6 +25,12 @@ interface VideoGridProps {
   onDelete: (id: string) => void;
   onShare: (id: string) => void;
   onToggleStar?: (id: string) => void;
+  onRename: (id: string, currentTitle: string) => void;
+  onMove: (id: string, folderId: string | null) => void;
+  onRestore?: (id: string) => void;
+  onOpenInNewTab: (id: string) => void;
+  folders: Folder[];
+  isInTrash?: boolean;
   showStarButton?: boolean;
 }
 
@@ -25,6 +39,12 @@ export const VideoGrid = ({
   onDelete,
   onShare,
   onToggleStar,
+  onRename,
+  onMove,
+  onRestore,
+  onOpenInNewTab,
+  folders,
+  isInTrash = false,
   showStarButton = true,
 }: VideoGridProps) => {
   if (sessions.length === 0) {
@@ -47,6 +67,12 @@ export const VideoGrid = ({
           onDelete={onDelete}
           onShare={onShare}
           onToggleStar={onToggleStar}
+          onRename={onRename}
+          onMove={onMove}
+          onRestore={onRestore}
+          onOpenInNewTab={onOpenInNewTab}
+          folders={folders}
+          isInTrash={isInTrash}
           showStarButton={showStarButton}
         />
       ))}
