@@ -80,7 +80,7 @@ const BrandSelector = ({ selectedBrand, onSelectBrand }: BrandSelectorProps) => 
           </div>
           <motion.div
             animate={{ rotate: isOpen ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
           >
             <ChevronDown className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
           </motion.div>
@@ -91,25 +91,41 @@ const BrandSelector = ({ selectedBrand, onSelectBrand }: BrandSelectorProps) => 
         <AnimatePresence>
           {isOpen && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0, height: 0, y: -10 }}
+              animate={{ opacity: 1, height: "auto", y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -10 }}
+              transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
               className="mt-2"
             >
-              <div className="glass-card p-4 space-y-2">
+              <motion.div 
+                className="backdrop-blur-xl bg-background/80 dark:bg-black/60 border border-white/10 dark:border-white/5 rounded-xl shadow-2xl p-3 space-y-1"
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  visible: {
+                    transition: {
+                      staggerChildren: 0.08
+                    }
+                  }
+                }}
+              >
                 {brands.map((brand) => {
                   const isSelected = selectedBrand === brand.id;
                   return (
                     <motion.div
                       key={brand.id}
+                      variants={{
+                        hidden: { opacity: 0, y: -10 },
+                        visible: { opacity: 1, y: 0 }
+                      }}
+                      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       className={cn(
-                        "p-3 rounded-lg cursor-pointer transition-all border",
+                        "p-3 rounded-lg cursor-pointer transition-all duration-300 border backdrop-blur-sm",
                         isSelected
-                          ? "bg-primary/10 border-primary/50"
-                          : "bg-card/50 border-border/50 hover:bg-card/80 hover:border-border"
+                          ? "bg-primary/10 border-primary/50 shadow-lg shadow-primary/10"
+                          : "bg-white/5 dark:bg-white/5 border-white/10 dark:border-white/5 hover:bg-white/10 dark:hover:bg-white/10 hover:border-white/20 dark:hover:border-white/10"
                       )}
                       onClick={() => {
                         onSelectBrand(isSelected ? null : brand.id);
@@ -142,7 +158,7 @@ const BrandSelector = ({ selectedBrand, onSelectBrand }: BrandSelectorProps) => 
                     </motion.div>
                   );
                 })}
-              </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
