@@ -14,7 +14,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, SortAsc, Star, Trash2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Search, SortAsc } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { generateThumbnailForSession } from "@/utils/generateThumbnailFromUrl";
 
@@ -24,6 +33,9 @@ const Sessions = () => {
   const [sortBy, setSortBy] = useState("date-desc");
   const [generatingThumbnails, setGeneratingThumbnails] = useState(false);
   const [selectedView, setSelectedView] = useState("all");
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [renameSessionId, setRenameSessionId] = useState<string | null>(null);
+  const [newTitle, setNewTitle] = useState("");
 
   const { data: sessions, isLoading, refetch } = useQuery({
     queryKey: ["sessions"],
@@ -32,6 +44,19 @@ const Sessions = () => {
         .from("sessions")
         .select("*")
         .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: folders } = useQuery({
+    queryKey: ["folders"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("folders")
+        .select("*")
+        .order("name");
 
       if (error) throw error;
       return data;
@@ -267,6 +292,93 @@ const Sessions = () => {
     }
   };
 
+  const handleRestore = async (sessionId: string) => {
+    try {
+      const { error } = await supabase
+        .from("sessions")
+        .update({ is_trashed: false, trashed_at: null })
+        .eq("id", sessionId);
+
+      if (error) throw error;
+
+      refetch();
+      toast({
+        title: "Restored",
+        description: "Recording has been restored",
+      });
+    } catch (error) {
+      console.error("Restore error:", error);
+      toast({
+        title: "Restore Failed",
+        description: error instanceof Error ? error.message : "Failed to restore session",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRename = (sessionId: string, currentTitle: string) => {
+    setRenameSessionId(sessionId);
+    setNewTitle(currentTitle);
+    setRenameDialogOpen(true);
+  };
+
+  const handleRenameSubmit = async () => {
+    if (!renameSessionId || !newTitle.trim()) return;
+
+    try {
+      const { error } = await supabase
+        .from("sessions")
+        .update({ title: newTitle.trim() })
+        .eq("id", renameSessionId);
+
+      if (error) throw error;
+
+      refetch();
+      toast({
+        title: "Renamed",
+        description: "Recording has been renamed",
+      });
+      setRenameDialogOpen(false);
+      setRenameSessionId(null);
+      setNewTitle("");
+    } catch (error) {
+      console.error("Rename error:", error);
+      toast({
+        title: "Rename Failed",
+        description: error instanceof Error ? error.message : "Failed to rename session",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleMove = async (sessionId: string, folderId: string | null) => {
+    try {
+      const { error } = await supabase
+        .from("sessions")
+        .update({ folder_id: folderId })
+        .eq("id", sessionId);
+
+      if (error) throw error;
+
+      refetch();
+      toast({
+        title: "Moved",
+        description: folderId ? "Recording moved to folder" : "Recording moved to All Items",
+      });
+    } catch (error) {
+      console.error("Move error:", error);
+      toast({
+        title: "Move Failed",
+        description: error instanceof Error ? error.message : "Failed to move session",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleOpenInNewTab = (sessionId: string) => {
+    window.open(`/session/${sessionId}`, '_blank');
+  };
+
   return (
     <div className="min-h-screen flex">
       {/* Sidebar */}
@@ -348,11 +460,53 @@ const Sessions = () => {
               onDelete={handleDelete}
               onShare={handleShare}
               onToggleStar={handleToggleStar}
+              onRename={handleRename}
+              onMove={handleMove}
+              onRestore={handleRestore}
+              onOpenInNewTab={handleOpenInNewTab}
+              folders={folders || []}
+              isInTrash={selectedView === "trash"}
               showStarButton={selectedView !== "trash"}
             />
           )}
         </motion.div>
       </div>
+
+      {/* Rename Dialog */}
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Recording</DialogTitle>
+            <DialogDescription>
+              Enter a new name for this recording
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleRenameSubmit();
+                  }
+                }}
+                placeholder="Enter recording title"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRenameSubmit}>
+              Rename
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
