@@ -157,6 +157,7 @@ export type Database = {
           share_expires_at: string | null
           share_token: string | null
           status: string
+          thumbnail_url: string | null
           title: string
           transcript_url: string | null
           updated_at: string | null
@@ -177,6 +178,7 @@ export type Database = {
           share_expires_at?: string | null
           share_token?: string | null
           status?: string
+          thumbnail_url?: string | null
           title: string
           transcript_url?: string | null
           updated_at?: string | null
@@ -197,6 +199,7 @@ export type Database = {
           share_expires_at?: string | null
           share_token?: string | null
           status?: string
+          thumbnail_url?: string | null
           title?: string
           transcript_url?: string | null
           updated_at?: string | null

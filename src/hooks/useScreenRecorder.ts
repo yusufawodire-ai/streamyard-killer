@@ -412,6 +412,7 @@ export const useScreenRecorder = () => {
   ): Promise<string> => {
     const fileName = `${brandId}/${sessionId}.webm`;
     
+    // Upload video
     const { data, error } = await supabase.storage
       .from('final-videos')
       .upload(fileName, blob, {
@@ -424,6 +425,24 @@ export const useScreenRecorder = () => {
     const { data: { publicUrl } } = supabase.storage
       .from('final-videos')
       .getPublicUrl(fileName);
+
+    // Generate and upload thumbnail in background
+    try {
+      const { generateThumbnail, uploadThumbnail } = await import('@/utils/thumbnailGenerator');
+      const thumbnailBlob = await generateThumbnail(blob);
+      const thumbnailUrl = await uploadThumbnail(supabase, thumbnailBlob, sessionId, brandId);
+      
+      // Update session with thumbnail URL
+      await supabase
+        .from('sessions')
+        .update({ thumbnail_url: thumbnailUrl })
+        .eq('id', sessionId);
+      
+      console.log('✅ Thumbnail generated and uploaded:', thumbnailUrl);
+    } catch (thumbnailError) {
+      console.error('Failed to generate thumbnail:', thumbnailError);
+      // Don't fail the upload if thumbnail fails
+    }
 
     return publicUrl;
   }, []);
