@@ -98,7 +98,7 @@ const BrandSelector = ({ selectedBrand, onSelectBrand }: BrandSelectorProps) => 
               className="mt-2"
             >
               <motion.div 
-                className="bg-[#0d0d0d]/95 backdrop-blur-sm border border-white/5 rounded-xl shadow-2xl overflow-hidden"
+                className="backdrop-blur-2xl bg-white/5 dark:bg-white/5 border border-white/15 dark:border-white/10 rounded-xl shadow-2xl overflow-hidden"
                 initial="hidden"
                 animate="visible"
                 variants={{
@@ -123,9 +123,9 @@ const BrandSelector = ({ selectedBrand, onSelectBrand }: BrandSelectorProps) => 
                       whileTap={{ scale: 0.998 }}
                       className={cn(
                         "px-4 py-3 cursor-pointer transition-all duration-200",
-                        index % 2 === 0 ? "bg-white/[0.02]" : "bg-transparent",
-                        isSelected && "bg-white/10",
-                        !isSelected && "hover:bg-white/5"
+                        index % 2 === 0 ? "bg-white/[0.03]" : "bg-transparent",
+                        isSelected && "bg-white/15",
+                        !isSelected && "hover:bg-white/8"
                       )}
                       onClick={() => {
                         onSelectBrand(isSelected ? null : brand.id);
