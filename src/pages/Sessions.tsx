@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { VideoGrid } from "@/components/VideoGrid";
-import { ShareModal } from "@/components/ShareModal";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,7 +20,6 @@ const Sessions = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("date-desc");
-  const [shareSessionId, setShareSessionId] = useState<string | null>(null);
 
   const { data: sessions, isLoading, refetch } = useQuery({
     queryKey: ["sessions"],
@@ -86,12 +84,41 @@ const Sessions = () => {
     }
   };
 
-  const handleShare = (sessionId: string) => {
-    setShareSessionId(sessionId);
-  };
+  const handleShare = async (sessionId: string) => {
+    try {
+      const session = sessions?.find((s) => s.id === sessionId);
+      if (!session) return;
 
-  // Get session data for share modal
-  const selectedSession = sessions?.find((s) => s.id === shareSessionId);
+      // Auto-enable public sharing if not already enabled
+      if (!session.is_public) {
+        const { error } = await supabase
+          .from("sessions")
+          .update({ is_public: true })
+          .eq("id", sessionId);
+
+        if (error) throw error;
+
+        // Refetch to get updated data
+        await refetch();
+      }
+
+      // Generate share URL and copy to clipboard
+      const shareUrl = `${window.location.origin}/share/${session.share_token}`;
+      await navigator.clipboard.writeText(shareUrl);
+
+      toast({
+        title: "Link Copied!",
+        description: "Share link has been copied to clipboard. Anyone with this link can view the video.",
+      });
+    } catch (error) {
+      console.error("Share error:", error);
+      toast({
+        title: "Share Failed",
+        description: error instanceof Error ? error.message : "Failed to share session",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen p-6">
@@ -155,17 +182,6 @@ const Sessions = () => {
         )}
       </motion.div>
 
-      {/* Share Modal */}
-      {shareSessionId && selectedSession && (
-        <ShareModal
-          sessionId={shareSessionId}
-          shareToken={selectedSession.share_token || ""}
-          isPublic={selectedSession.is_public || false}
-          open={!!shareSessionId}
-          onOpenChange={(open) => !open && setShareSessionId(null)}
-          onShareToggle={() => refetch()}
-        />
-      )}
     </div>
   );
 };
