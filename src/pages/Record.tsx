@@ -31,7 +31,10 @@ const Record = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isWebcamVisibleState, setIsWebcamVisibleState] = useState(true);
   const [isControlsExpanded, setIsControlsExpanded] = useState(true);
-  const [controlsPosition, setControlsPosition] = useState({ x: 0, y: 0 });
+  const [controlsPosition, setControlsPosition] = useState(() => ({ 
+    x: window.innerWidth / 2 - 160, 
+    y: 20 
+  }));
   const [isDragging, setIsDragging] = useState(false);
   const [pauseTranscript, setPauseTranscript] = useState<string | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -457,13 +460,14 @@ const Record = () => {
           {/* Collapsed Button */}
           {!isControlsExpanded && (
                       <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
                         style={{
                           position: 'fixed',
-                          top: controlsPosition.y || 20,
-                          left: controlsPosition.x || 20,
+                          top: controlsPosition.y,
+                          left: controlsPosition.x,
                           zIndex: 10001,
+                          willChange: 'transform',
                         }}
                         className="pointer-events-auto"
                       >
@@ -491,13 +495,14 @@ const Record = () => {
                     {/* Expanded Control Panel */}
                     {isControlsExpanded && (
                       <motion.div
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
                         style={{
                           position: 'fixed',
-                          top: controlsPosition.y || 20,
-                          left: controlsPosition.x || (window.innerWidth / 2 - 160),
+                          top: controlsPosition.y,
+                          left: controlsPosition.x,
                           zIndex: 10001,
+                          willChange: 'transform',
                         }}
                         className="pointer-events-auto"
                       >
