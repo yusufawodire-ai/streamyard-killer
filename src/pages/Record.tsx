@@ -17,6 +17,7 @@ import WebcamPositionControl from "@/components/WebcamPositionControl";
 import ScreenAreaSelector from "@/components/ScreenAreaSelector";
 import { RecordingConfig, CropSettings } from "@/types/recording";
 import { TranscriptPanel } from "@/components/TranscriptPanel";
+import { AISuggestionsPanel, AISuggestion } from "@/components/AISuggestionsPanel";
 
 const Record = () => {
   const [currentStep, setCurrentStep] = useState<'setup' | 'area-selection' | 'settings' | 'recording'>('setup');
@@ -34,6 +35,8 @@ const Record = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [pauseTranscript, setPauseTranscript] = useState<string | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<AISuggestion[]>([]);
+  const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { state, startRecording, stopRecording, pauseRecording, resumeRecording, uploadRecording, updateWebcamPosition, updateWebcamSize, toggleWebcamVisibility, isWebcamVisible } = useScreenRecorder();
@@ -194,6 +197,7 @@ const Record = () => {
   const handlePause = async () => {
     setIsTranscribing(true);
     setPauseTranscript(null);
+    setAiSuggestions([]);
     
     try {
       // 1. Pause and get current blob
@@ -229,6 +233,34 @@ const Record = () => {
           title: "Transcript Ready",
           description: "Your transcript is available in the panel",
         });
+
+        // 4. Generate AI suggestions based on transcript
+        setIsGeneratingSuggestions(true);
+        try {
+          const { data: suggestionsData, error: suggestionsError } = await supabase.functions.invoke('ai-suggestions', {
+            body: {
+              transcript: data.text,
+              context: {
+                brand: brandId,
+                title: title,
+              }
+            }
+          });
+
+          if (suggestionsError) {
+            console.error('AI suggestions error:', suggestionsError);
+          } else if (suggestionsData?.suggestions) {
+            setAiSuggestions(suggestionsData.suggestions);
+            toast({
+              title: "AI Suggestions Ready",
+              description: `${suggestionsData.suggestions.length} suggestions generated`,
+            });
+          }
+        } catch (suggestionsErr) {
+          console.error('Error generating suggestions:', suggestionsErr);
+        } finally {
+          setIsGeneratingSuggestions(false);
+        }
       }
     } catch (error) {
       console.error('Error transcribing:', error);
@@ -240,6 +272,48 @@ const Record = () => {
     } finally {
       setIsTranscribing(false);
     }
+  };
+
+  const handleRegenerateSuggestions = async () => {
+    if (!pauseTranscript) return;
+    
+    setIsGeneratingSuggestions(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-suggestions', {
+        body: {
+          transcript: pauseTranscript,
+          context: {
+            brand: brandId,
+            title: title,
+          }
+        }
+      });
+
+      if (error) throw error;
+      
+      if (data?.suggestions) {
+        setAiSuggestions(data.suggestions);
+        toast({
+          title: "Suggestions Updated",
+          description: `${data.suggestions.length} new suggestions generated`,
+        });
+      }
+    } catch (error) {
+      console.error('Error regenerating suggestions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to regenerate suggestions",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingSuggestions(false);
+    }
+  };
+
+  const handleToggleSuggestionCovered = (id: number) => {
+    setAiSuggestions(prev => 
+      prev.map(s => s.id === id ? { ...s, covered: !s.covered } : s)
+    );
   };
 
   const handleStopRecording = async () => {
@@ -569,13 +643,23 @@ const Record = () => {
                    </>
                  )}
 
-                 {/* Transcript Panel - Show when transcript is available or loading */}
-                 {(pauseTranscript || isTranscribing) && (
-                   <TranscriptPanel
-                     transcript={pauseTranscript}
-                     isLoading={isTranscribing}
-                   />
-                 )}
+                  {/* Transcript Panel - Show when transcript is available or loading */}
+                  {(pauseTranscript || isTranscribing) && (
+                    <TranscriptPanel
+                      transcript={pauseTranscript}
+                      isLoading={isTranscribing}
+                    />
+                  )}
+
+                  {/* AI Suggestions Panel - Show when suggestions are available or loading */}
+                  {(aiSuggestions.length > 0 || isGeneratingSuggestions) && (
+                    <AISuggestionsPanel
+                      suggestions={aiSuggestions}
+                      isLoading={isGeneratingSuggestions}
+                      onRegenerate={handleRegenerateSuggestions}
+                      onToggleCovered={handleToggleSuggestionCovered}
+                    />
+                  )}
                </div>
              );
            }
