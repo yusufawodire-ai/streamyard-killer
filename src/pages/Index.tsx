@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Video, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 import BrandSelector from "@/components/BrandSelector";
 import RecordingSession from "@/components/RecordingSession";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { GlassCard } from "@/components/ui/glass-card";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,14 +62,11 @@ const Index = () => {
     <div className="min-h-screen p-6">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground mt-1">
-              Monitor your content automation workflow
-            </p>
-          </div>
-          <ThemeToggle />
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Monitor your content automation workflow
+          </p>
         </div>
 
         {/* Brand Selector */}

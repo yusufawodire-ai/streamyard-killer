@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import Index from "./pages/Index";
 import Record from "./pages/Record";
 import SessionDetail from "./pages/SessionDetail";
@@ -26,8 +27,9 @@ const App = () => (
             <div className="flex min-h-screen w-full">
               <AppSidebar />
               <main className="flex-1">
-                <div className="sticky top-0 z-10 glass-header backdrop-blur-xl border-b border-border/50 px-4 py-3">
+                <div className="sticky top-0 z-10 glass-header backdrop-blur-xl border-b border-border/50 px-4 py-3 flex items-center justify-between">
                   <SidebarTrigger />
+                  <ThemeToggle />
                 </div>
                 <Routes>
                   <Route path="/" element={<Index />} />
