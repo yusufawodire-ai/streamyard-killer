@@ -53,10 +53,13 @@ const Sessions = () => {
           `Found ${sessionsNeedingThumbnails.length} sessions without thumbnails`
         );
 
+        let successCount = 0;
+        let failCount = 0;
+
         // Generate thumbnails in batches of 3 to avoid overwhelming the system
         for (let i = 0; i < sessionsNeedingThumbnails.length; i += 3) {
           const batch = sessionsNeedingThumbnails.slice(i, i + 3);
-          await Promise.all(
+          const results = await Promise.allSettled(
             batch.map((session) =>
               generateThumbnailForSession(
                 session.id,
@@ -65,16 +68,35 @@ const Sessions = () => {
               )
             )
           );
+
+          // Count successes and failures
+          results.forEach((result) => {
+            if (result.status === 'fulfilled') {
+              successCount++;
+            } else {
+              failCount++;
+              console.error('Thumbnail generation failed:', result.reason);
+            }
+          });
         }
 
         // Refetch sessions to get updated thumbnail URLs
         await refetch();
         setGeneratingThumbnails(false);
 
-        toast({
-          title: "Thumbnails Generated",
-          description: `Generated ${sessionsNeedingThumbnails.length} thumbnails`,
-        });
+        // Show appropriate toast based on results
+        if (successCount > 0) {
+          toast({
+            title: "Thumbnails Generated",
+            description: `Successfully generated ${successCount} thumbnail${successCount !== 1 ? 's' : ''}`,
+          });
+        } else if (failCount > 0) {
+          toast({
+            title: "Thumbnail Generation Failed",
+            description: `Failed to generate thumbnails. Check console for details.`,
+            variant: "destructive",
+          });
+        }
       }
     };
 
