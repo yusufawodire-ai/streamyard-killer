@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { VideoGrid } from "@/components/VideoGrid";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -13,13 +13,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, SortAsc } from "lucide-react";
+import { Search, SortAsc, FolderPlus, Image } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { generateThumbnailForSession } from "@/utils/generateThumbnailFromUrl";
 
 const Sessions = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("date-desc");
+  const [generatingThumbnails, setGeneratingThumbnails] = useState(false);
 
   const { data: sessions, isLoading, refetch } = useQuery({
     queryKey: ["sessions"],
@@ -33,6 +35,49 @@ const Sessions = () => {
       return data;
     },
   });
+
+  // Auto-generate thumbnails for videos without them
+  useEffect(() => {
+    const generateMissingThumbnails = async () => {
+      if (!sessions || generatingThumbnails) return;
+
+      const sessionsNeedingThumbnails = sessions.filter(
+        (s) => !s.thumbnail_url && s.final_video_url
+      );
+
+      if (sessionsNeedingThumbnails.length > 0) {
+        setGeneratingThumbnails(true);
+        console.log(
+          `Found ${sessionsNeedingThumbnails.length} sessions without thumbnails`
+        );
+
+        // Generate thumbnails in batches of 3 to avoid overwhelming the system
+        for (let i = 0; i < sessionsNeedingThumbnails.length; i += 3) {
+          const batch = sessionsNeedingThumbnails.slice(i, i + 3);
+          await Promise.all(
+            batch.map((session) =>
+              generateThumbnailForSession(
+                session.id,
+                session.final_video_url!,
+                session.brand_id
+              )
+            )
+          );
+        }
+
+        // Refetch sessions to get updated thumbnail URLs
+        await refetch();
+        setGeneratingThumbnails(false);
+        
+        toast({
+          title: "Thumbnails Generated",
+          description: `Generated ${sessionsNeedingThumbnails.length} thumbnails`,
+        });
+      }
+    };
+
+    generateMissingThumbnails();
+  }, [sessions, generatingThumbnails, refetch, toast]);
 
   // Filter and sort sessions
   const filteredSessions = sessions
