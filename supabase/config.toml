@@ -1,5 +1,8 @@
 project_id = "plklxboeramqlwgmhkpc"
 
+[functions.ai-suggestions]
+verify_jwt = false
+
 [functions.check-transcription]
 verify_jwt = false
 
